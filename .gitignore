@@ -1,0 +1,7 @@
+
+*.pyc
+PyTimeMux/PyTMCore/__pycache__/__init__.cpython-37.pyc
+PyTimeMux/PyTMCore/__pycache__/TMacqCore.cpython-37.pyc
+PyTimeMux/PyTMCore/__pycache__/TMacqThread.cpython-37.pyc
+PyTimeMux/PyTMCore/HwConf/__pycache__/HwConfig.cpython-37.pyc
+*.pyc
