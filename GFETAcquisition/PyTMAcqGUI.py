@@ -34,7 +34,7 @@ import PyTMCore.TMacqThread as AcqMod
 
 
 class MainWindow(Qt.QWidget):
-    ''' Main Window '''
+    """ Main Window """
 
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -66,7 +66,7 @@ class MainWindow(Qt.QWidget):
         self.SamplingPar.Vgs.sigValueChanged.connect(self.on_BiasChanged)
 
         self.PlotParams = TimePltPars(name='TimePlt',
-                              title='Time Plot Options')
+                                      title='Time Plot Options')
 
         self.PlotParams.NewConf.connect(self.on_NewPlotConf)
         self.Parameters.addChild(self.PlotParams)
@@ -143,7 +143,6 @@ class MainWindow(Qt.QWidget):
             self.SamplingPar.Ao2.sigValueChanged.connect(self.on_BiasChanged)
         if self.SamplingPar.Ao3:
             self.SamplingPar.Ao3.sigValueChanged.connect(self.on_BiasChanged)
-
 
     def on_NewPlotConf(self):
         if self.threadPlotter is not None:
@@ -256,17 +255,18 @@ class MainWindow(Qt.QWidget):
         if self.threadPlotterRaw is not None:
             self.threadPlotterRaw.AddData(self.threadAcq.aiData.transpose())
 
+
 def main():
-    import argparse
-    import pkg_resources
+    # import argparse
+    # import pkg_resources
 
     # Add version option
-    __version__ = pkg_resources.require("PyqtTools")[0].version
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {version}'.format(
-                            version=__version__))
-    parser.parse_args()
+    # __version__ = pkg_resources.require("PyqtTools")[0].version
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--version', action='version',
+    #                    version='%(prog)s {version}'.format(
+    #                        version=__version__))
+    # parser.parse_args()
 
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow()
