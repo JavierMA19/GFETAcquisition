@@ -11,11 +11,8 @@ from qtpy import QtWidgets
 
 from pyqtgraph.parametertree import ParameterTree, Parameter
 
-from GFETCharact.ParamConf.FileModule import SaveDataParams
-from GFETCharact.ParamConf.FileModule import SaveSateParams
-from GFETCharact.ParamConf.SweepsConf import SweepsConfig
-from GFETCharact.ParamConf.HardwareConf import HardwareConfig
-from GFETCharact.CracterizationCore import CharacterizationMachine
+from GFETAcquisition.ParamConf.HardwareConf import HardwareConfig
+from GFETAcquisition.ParamConf.AcquisitionConf import AcquisitionConfig
 
 import sys
 
@@ -36,66 +33,67 @@ class MainWindow(Qt.QWidget):
         # start Button
         self.btnAcq = Qt.QPushButton("Start Measure")
         layout.addWidget(self.btnAcq)
+        #
+        # self.InfoStr = Parameter.create(**{'name': 'InfoStr',
+        #                                    'title': 'Status Info',
+        #                                    'type': 'text',
+        #                                    'expanded': True,
+        #                                    'readonly': True})
 
-        self.InfoStr = Parameter.create(**{'name': 'InfoStr',
-                                           'title': 'Status Info',
-                                           'type': 'text',
-                                           'expanded': True,
-                                           'readonly': True})
+        # self.SaveStateConf = SaveSateParams(QTparent=self,
+        #                                     name='SaveStateConf',
+        #                                     title='Save Load State',
+        #                                     expanded=False)
 
-        self.SaveStateConf = SaveSateParams(QTparent=self,
-                                            name='SaveStateConf',
-                                            title='Save Load State',
-                                            expanded=False)
-
-        self.SaveFileConf = SaveDataParams(QTparent=self,
-                                           name='SaveFileConf',
-                                           title='Save Data',
-                                           expanded=True)
+        # self.SaveFileConf = SaveDataParams(QTparent=self,
+        #                                    name='SaveFileConf',
+        #                                    title='Save Data',
+        #                                    expanded=True)
 
         self.HardConf = HardwareConfig(name='HardConf',
                                        title='Hardware Config')
 
-        self.SweepsConf = SweepsConfig(HardConf=self.HardConf,
-                                       name='SweepsConfig',
-                                       title='Characterization Configuration')
+        self.AcqConf = AcquisitionConfig(HardConf=self.HardConf,
+                                            name='AcqConfig',
+                                            title='Acquisition Configuration')
 
         self.Parameters = Parameter.create(name='App Parameters',
                                            type='group',
                                            children=(
-                                               self.InfoStr,
+                                               # self.InfoStr,
                                                self.HardConf,
-                                               self.SweepsConf,
-                                               self.SaveFileConf,
-                                               self.SaveStateConf,
+                                               self.AcqConf,
+                                               # self.SaveFileConf,
+                                               # self.SaveStateConf,
                                            ))
 
         self.treepar = ParameterTree()
         self.treepar.setParameters(self.Parameters, showTop=False)
 
         layout.addWidget(self.treepar)
-
-        self.Charact = CharacterizationMachine(SweepsConf=self.SweepsConf,
-                                               InfoOut=self.InfoStr)
-
-        self.Charact.CharactFinished.connect(self.on_CharactFinished)
+        #
+        # self.Charact = CharacterizationMachine(SweepsConf=self.SweepsConf,
+        #                                        InfoOut=self.InfoStr)
+        #
+        # self.Charact.CharactFinished.connect(self.on_CharactFinished)
         self.btnAcq.clicked.connect(self.on_btnStart)
 
     def on_btnStart(self):
-        if self.Charact.ChactRunning:
-            self.SweepsConf.Cycles.setValue(1)
-            self.Charact.StopCharact()
-        else:
-            self.Charact.StartCharact(HardConf=self.HardConf,
-                                      SaveFileConf=self.SaveFileConf)
-            self.btnAcq.setText('Stop Measure')
+        print('ButStart')
+        # if self.Charact.ChactRunning:
+        #     self.SweepsConf.Cycles.setValue(1)
+        #     self.Charact.StopCharact()
+        # else:
+        #     self.Charact.StartCharact(HardConf=self.HardConf,
+        #                               SaveFileConf=self.SaveFileConf)
+        #     self.btnAcq.setText('Stop Measure')
 
-    def on_CharactFinished(self):
-        self.btnAcq.setText('Start Measure')
-        Cy = self.SweepsConf.Cycles.value() - 1
-        self.SweepsConf.Cycles.setValue(Cy)
-        if Cy > 0:
-            self.on_btnStart()
+    # def on_CharactFinished(self):
+    #     self.btnAcq.setText('Start Measure')
+    #     Cy = self.SweepsConf.Cycles.value() - 1
+    #     self.SweepsConf.Cycles.setValue(Cy)
+    #     if Cy > 0:
+    #         self.on_btnStart()
 
 
 def main():

@@ -9,7 +9,7 @@ Created on Wed Feb 19 10:56:29 2020
 import pyqtgraph.parametertree.parameterTypes as pTypes
 from PyQt5 import Qt
 
-import GFETCharact.ParamConf.HwConfig as BoardConf
+import GFETAcquisition.ParamConf.HwConfig as BoardConf
 
 
 class HwGainsConfig(pTypes.GroupParameter):

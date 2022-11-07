@@ -8,7 +8,7 @@ Created on Wed Dec 18 09:25:47 2019
 import pyqtgraph.parametertree.parameterTypes as pTypes
 import numpy as np
 
-from GFETCharact.ParamConf.BodeModule import BodeConfig
+from GFETAcquisition.ParamConf.BodeModule import BodeConfig
 
 ###############################################################################
 # Generic voltage sweep
