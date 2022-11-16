@@ -51,10 +51,6 @@ PlotterPars = ({'name': 'Fs',
                 'type': 'float',
                 'siPrefix': True,
                 'suffix': 'Hz'},
-               {'name': 'PlotEnable',
-                'title': 'Plot Enable',
-                'type': 'bool',
-                'value': True},
                {'name': 'nChannels',
                 'readonly': True,
                 'type': 'int',
@@ -135,7 +131,7 @@ DiscarParamsPlt = ('Channels',
                    )
 
 
-class PlotterParameters(pTypes.GroupParameter):
+class TimePlotConfig(pTypes.GroupParameter):
     NewConf = Qt.pyqtSignal()
 
     def __init__(self, **kwargs):
@@ -542,7 +538,7 @@ PSDPars = ({'name': 'Fs',
 PSDParsList = ('Fs', 'nFFT', 'nAvg', 'nChannels', 'scaling')
 
 
-class PSDParameters(pTypes.GroupParameter):
+class PSDPlotConfig(pTypes.GroupParameter):
     NewConf = Qt.pyqtSignal()
 
     def __init__(self, **kwargs):

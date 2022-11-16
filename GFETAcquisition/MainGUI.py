@@ -13,7 +13,7 @@ from pyqtgraph.parametertree import ParameterTree, Parameter
 
 from GFETAcquisition.ParamConf.HardwareConf import HardwareConfig
 from GFETAcquisition.ParamConf.AcquisitionConf import AcquisitionConfig
-
+from GFETAcquisition.ParamConf.PlotDataConf import PlotDataConfig
 import sys
 
 _version = '0.2.0.b2'
@@ -51,11 +51,18 @@ class MainWindow(Qt.QWidget):
         #                                    expanded=True)
 
         self.HardConf = HardwareConfig(name='HardConf',
-                                       title='Hardware Config')
+                                       title='Hardware Config',
+                                       expanded=False)
 
         self.AcqConf = AcquisitionConfig(HardConf=self.HardConf,
                                          name='AcqConfig',
-                                         title='Acquisition Configuration')
+                                         title='Acquisition Configuration',
+                                         expanded=False)
+
+        self.PlotDataConf = PlotDataConfig(AcquisitionConfig=self.AcqConf,
+                                           name='PlotDataConf',
+                                           title='Plotting Configuration',
+                                           expanded=False)
 
         self.Parameters = Parameter.create(name='App Parameters',
                                            type='group',
@@ -63,7 +70,7 @@ class MainWindow(Qt.QWidget):
                                                # self.InfoStr,
                                                self.HardConf,
                                                self.AcqConf,
-                                               # self.SaveFileConf,
+                                               self.PlotDataConf,
                                                # self.SaveStateConf,
                                            ))
 
