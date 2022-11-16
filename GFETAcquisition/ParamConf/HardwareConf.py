@@ -186,6 +186,8 @@ class BoardConfig(pTypes.GroupParameter):
 
 
 class ColumnsConfig(pTypes.GroupParameter):
+    on_SelColumnsChanged = Qt.pyqtSignal(object)
+
     def __init__(self, Columns, **kwargs):
         super(ColumnsConfig, self).__init__(**kwargs)
 
@@ -199,19 +201,25 @@ class ColumnsConfig(pTypes.GroupParameter):
         self.param('SelAll').sigActivated.connect(self.on_SelAll)
         self.param('SelInvert').sigActivated.connect(self.on_SelInvert)
 
+        self.Cols = []
         for n, v in sorted(Columns.items()):
-            self.addChild({'name': n,
-                           'type': 'bool',
-                           'value': True,
-                           'dout': v,
-                           }, )
+            ch = self.addChild({'name': n,
+                                'type': 'bool',
+                                'value': True,
+                                'dout': v,
+                                }, )
+            ch.sigValueChanged.connect(self.on_ColumnsChanged)
+            self.Cols.append(ch)
+
+    def on_ColumnsChanged(self):
+        self.on_SelColumnsChanged.emit(self.GetColumns())
 
     def on_SelAll(self):
         self.seltruefalse = not self.seltruefalse
         for p in self.children():
             if p.type() == 'action':
                 continue
-            p.setValue(self.seltrufalse)
+            p.setValue(self.seltruefalse)
 
     def on_SelInvert(self):
         for p in self.children():
@@ -230,6 +238,8 @@ class ColumnsConfig(pTypes.GroupParameter):
 
 
 class SwitchMatrixConfig(pTypes.GroupParameter):
+    on_SelColumnsChanged = Qt.pyqtSignal(object)
+
     def __init__(self, Board, **kwargs):
         super(SwitchMatrixConfig, self).__init__(**kwargs)
         if Board is None:
@@ -248,6 +258,7 @@ class SwitchMatrixConfig(pTypes.GroupParameter):
                                      name='Columns',
                                      title='Columns Selection',
                                      expanded=False, )
+        self.Columns.on_SelColumnsChanged.connect(self.on_SelColumns)
 
         self.AOutputs = AOutputsConfig(AOutputs=Board['AnalogOutputs'],
                                        name='AOutputs',
@@ -256,12 +267,18 @@ class SwitchMatrixConfig(pTypes.GroupParameter):
 
         self.addChildren((self.AOutputs, self.Columns))
 
+    def on_SelColumns(self, Cols):
+        self.on_SelColumnsChanged.emit(Cols)
+
 
 class HardwareConfig(pTypes.GroupParameter):
     on_board_sel = Qt.pyqtSignal(object)
+    on_SwitchMatrix_sel = Qt.pyqtSignal(object)
 
     def __init__(self, **kwargs):
         super(HardwareConfig, self).__init__(**kwargs)
+        self.SwitchSel = None
+        self.Board = None
         self.addChild({'name': 'BoardSel',
                        'title': 'Board Selection',
                        'type': 'list',
@@ -287,13 +304,14 @@ class HardwareConfig(pTypes.GroupParameter):
 
     def Add_Board(self):
         Board = self.param('BoardSel').value()
-        self.addChild(BoardConfig(Board=BoardConf.Boards[Board],
-                                  name='BoardConf',
-                                  title='Hardware Configuration'))
+        self.Board = self.addChild(BoardConfig(Board=BoardConf.Boards[Board],
+                                               name='BoardConf',
+                                               title='Hardware Configuration'))
 
     def on_SwitchMatrixSel(self):
         self.param('SwitchMatrixConf').remove()
         self.Add_SwitchSel()
+        self.on_SwitchMatrix_sel.emit(self.SwitchSel)
 
     def Add_SwitchSel(self):
         Switch = self.param('SwitchMatrixSel').value()
@@ -302,6 +320,6 @@ class HardwareConfig(pTypes.GroupParameter):
         else:
             Board = BoardConf.SwitchMatrix[Switch]
 
-        self.addChild(SwitchMatrixConfig(Board=Board,
-                                         name='SwitchMatrixConf',
-                                         title='Switch Matrix Configuration'))
+        self.SwitchSel = self.addChild(SwitchMatrixConfig(Board=Board,
+                                                          name='SwitchMatrixConf',
+                                                          title='Switch Matrix Configuration'))

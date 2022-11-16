@@ -141,7 +141,28 @@ Decoder32Cols = {'douts': ('port0/line9:15',),
                                    },
                  }
 
+
+def ColumnInverter(nCols=16):
+    Cols = {}
+    for i in range(nCols):
+        name = 'Col{0:02d}'.format(i + 1)
+        Base = np.ones((nCols * 2), dtype=np.bool)
+        Base[0::2] = False
+        Base[i * 2] = True
+        Base[(i * 2) + 1] = False
+        Cols[name] = Base.astype(np.uint8)
+    return Cols
+
+
+Mos16Cols = {'douts': ('port0/line0:31',),
+             'Columns': ColumnInverter(nCols=16),
+             'AnalogOutputs': {'Von': 'ao2',
+                               'Voff': 'ao3',
+                               },
+             }
+
 SwitchMatrix = {'Decoder32Cols': Decoder32Cols,
+                'Mos16Cols': Mos16Cols,
                 }
 
 # if __name__ == '__main__':

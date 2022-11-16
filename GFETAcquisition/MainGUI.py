@@ -54,8 +54,8 @@ class MainWindow(Qt.QWidget):
                                        title='Hardware Config')
 
         self.AcqConf = AcquisitionConfig(HardConf=self.HardConf,
-                                            name='AcqConfig',
-                                            title='Acquisition Configuration')
+                                         name='AcqConfig',
+                                         title='Acquisition Configuration')
 
         self.Parameters = Parameter.create(name='App Parameters',
                                            type='group',
