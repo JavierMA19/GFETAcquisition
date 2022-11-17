@@ -14,6 +14,8 @@ from pyqtgraph.parametertree import ParameterTree, Parameter
 from GFETAcquisition.ParamConf.HardwareConf import HardwareConfig
 from GFETAcquisition.ParamConf.AcquisitionConf import AcquisitionConfig
 from GFETAcquisition.ParamConf.PlotDataConf import PlotDataConfig
+from GFETAcquisition.AcquisitionCore import AcquisitionMachine
+
 import sys
 
 _version = '0.2.0.b2'
@@ -78,6 +80,9 @@ class MainWindow(Qt.QWidget):
         self.treepar.setParameters(self.Parameters, showTop=False)
 
         layout.addWidget(self.treepar)
+
+        self.AcqMach = AcquisitionMachine(AcquisitionConf=self.AcqConf)
+
         #
         # self.Charact = CharacterizationMachine(SweepsConf=self.SweepsConf,
         #                                        InfoOut=self.InfoStr)
@@ -87,6 +92,9 @@ class MainWindow(Qt.QWidget):
 
     def on_btnStart(self):
         print('ButStart')
+
+        self.AcqMach.StartAcquisition()
+
         # if self.Charact.ChactRunning:
         #     self.SweepsConf.Cycles.setValue(1)
         #     self.Charact.StopCharact()

@@ -34,10 +34,7 @@ class SwitchMatrixInterface:
 
 
 class HardwareInterface(Qt.QObject):
-    SigReadDC = Qt.pyqtSignal(object)
-    SigReadAC = Qt.pyqtSignal(object)
-    SigReadGate = Qt.pyqtSignal(object)
-    SigDebug = Qt.pyqtSignal(object)
+    SigRawData = Qt.pyqtSignal(object)
 
     def __init__(self, AcquisitionConf):
         super(HardwareInterface, self).__init__()
@@ -49,11 +46,13 @@ class HardwareInterface(Qt.QObject):
         self.cAouts = self.Board.AOutputs.GetAOuts()
         self.cGains = self.Board.Gains.GetGains()
 
-        self.aiDC = self.cDCChannels.values()
-        self.aiAC = self.cACChannels.values()
+        self.AcqConf = AcquisitionConf
 
         self.InitAouts()
+        self.InitAinputs()
         self.Init_ACDCSwitch()
+
+
 
         # self.aiChNames = self.cDCChannels.keys()
         # self.cDCChannels = self.Board.AInputs.GetDCChannels()
@@ -64,7 +63,7 @@ class HardwareInterface(Qt.QObject):
         # print(self.cDCChannels)
 
     def Init_ACDCSwitch(self):
-        self.ACDCSwitch = self.HardConf.ACDCSwitch
+        self.ACDCSwitch = self.Board.ACDCSwitch
         if self.ACDCSwitch is not None:
             self.ACDCSwDouts = WriteDigital(self.ACDCSwitch.douts)
 
@@ -94,24 +93,21 @@ class HardwareInterface(Qt.QObject):
     #         self.Aouts['Vg'] = WriteAnalog((self.cAouts['Vg']['Output'],))
     #         self.Aouts['Vg'].SetVal(0)
 
-    def ReadAC(self, Fs, nSamps, EverySamps, **kwargs):
-        self.Ains = ReadAnalog(self.aiAC)
-        self.Select_ACDCSwitch('AC')
-        self.Ains.EveryNEvent = self.on_AC_Data_Debug
-        self.Ains.DoneEvent = self.on_AC_Data
-        self.Ains.ReadData(Fs=Fs,
-                           nSamps=nSamps,
-                           EverySamps=EverySamps)
+    def InitAinputs(self):
+        Channels = self.AcqConf.GetAcqChannels()
+        self.aiIns = ReadAnalog(Channels['aiChannels'])
 
-    def on_AC_Data(self, Data):
-        # Data = signal.detrend(Data)
-        Ids = Data / self.cGains['ACGain']
-        self.StopTestSignal()
-        self.SigReadAC.emit(Ids)
+    def StartRead(self ):
+        # self.Ains = ReadAnalog(self.aiAC)
+        # self.Select_ACDCSwitch('AC')
+        self.aiIns.EveryNEvent = self.on_RawData
+        # self.Ains.DoneEvent = self.on_AC_Data
+        self.aiIns.ReadContData(Fs=1000,
+                           EverySamps=1000)
 
-    def on_AC_Data_Debug(self, Data):
+    def on_RawData(self, Data):
         Ids = Data / self.cGains['ACGain']
-        self.SigDebug.emit(Ids)
+        self.SigRawData.emit(Ids)
 
     def StopRead(self):
         self.Ains.ClearTask()
@@ -123,6 +119,12 @@ class AcquisitionMachine(Qt.QObject):
         super(AcquisitionMachine, self).__init__()
 
         self.HardInt = HardwareInterface(AcquisitionConf)
+        self.HardInt.SigRawData.connect(self.on_RawData)
 
     def StartAcquisition(self):
+        self.HardInt.StartRead()
+
+    def on_RawData(self, Data):
+        print(Data.shape)
+
 
