@@ -31,6 +31,8 @@ class HwGainsConfig(pTypes.GroupParameter):
 
 
 class AInputsConfig(pTypes.GroupParameter):
+    sigAInputsChanged = Qt.pyqtSignal()
+
     def __init__(self, AInputs, **kwargs):
         super(AInputsConfig, self).__init__(**kwargs)
 
@@ -44,13 +46,19 @@ class AInputsConfig(pTypes.GroupParameter):
         self.param('SelAll').sigActivated.connect(self.on_SelAll)
         self.param('SelInvert').sigActivated.connect(self.on_SelInvert)
 
+        self.AIs = []
         for n, v in sorted(AInputs.items()):
-            self.addChild({'name': n,
-                           'type': 'bool',
-                           'value': True,
-                           'aiDC': v[0],
-                           'aiAC': v[-1],
-                           }, )
+            ch = self.addChild({'name': n,
+                                'type': 'bool',
+                                'value': True,
+                                'aiDC': v[0],
+                                'aiAC': v[-1],
+                                }, )
+            ch.sigValueChanged.connect(self.on_AInputsChanged)
+            self.AIs.append(ch)
+
+    def on_AInputsChanged(self):
+        self.sigAInputsChanged.emit()
 
     def on_SelAll(self):
         self.seltrufalse = not self.seltrufalse
@@ -157,6 +165,8 @@ class ACDCSwitchConfig(pTypes.GroupParameter):
 
 
 class BoardConfig(pTypes.GroupParameter):
+    sigAInputsChanged = Qt.pyqtSignal()
+
     def __init__(self, Board, **kwargs):
         super(BoardConfig, self).__init__(**kwargs)
 
@@ -184,9 +194,13 @@ class BoardConfig(pTypes.GroupParameter):
         else:
             self.ACDCSwitch = None
 
+        self.AInputs.sigAInputsChanged.connect(self.on_sigAInputsChanged)
+
+    def on_sigAInputsChanged(self):
+        self.sigAInputsChanged.emit()
 
 class ColumnsConfig(pTypes.GroupParameter):
-    on_SelColumnsChanged = Qt.pyqtSignal(object)
+    sigSelColumnsChanged = Qt.pyqtSignal(object)
 
     def __init__(self, Columns, **kwargs):
         super(ColumnsConfig, self).__init__(**kwargs)
@@ -212,7 +226,7 @@ class ColumnsConfig(pTypes.GroupParameter):
             self.Cols.append(ch)
 
     def on_ColumnsChanged(self):
-        self.on_SelColumnsChanged.emit(self.GetColumns())
+        self.sigSelColumnsChanged.emit(self.GetColumns())
 
     def on_SelAll(self):
         self.seltruefalse = not self.seltruefalse
@@ -238,7 +252,7 @@ class ColumnsConfig(pTypes.GroupParameter):
 
 
 class SwitchMatrixConfig(pTypes.GroupParameter):
-    on_SelColumnsChanged = Qt.pyqtSignal(object)
+    sigSelColumnsChanged = Qt.pyqtSignal(object)
 
     def __init__(self, Board, **kwargs):
         super(SwitchMatrixConfig, self).__init__(**kwargs)
@@ -258,7 +272,7 @@ class SwitchMatrixConfig(pTypes.GroupParameter):
                                      name='Columns',
                                      title='Columns Selection',
                                      expanded=False, )
-        self.Columns.on_SelColumnsChanged.connect(self.on_SelColumns)
+        self.Columns.sigSelColumnsChanged.connect(self.on_SelColumns)
 
         self.AOutputs = AOutputsConfig(AOutputs=Board['AnalogOutputs'],
                                        name='AOutputs',
@@ -268,16 +282,16 @@ class SwitchMatrixConfig(pTypes.GroupParameter):
         self.addChildren((self.AOutputs, self.Columns))
 
     def on_SelColumns(self, Cols):
-        self.on_SelColumnsChanged.emit(Cols)
+        self.sigSelColumnsChanged.emit(Cols)
 
 
 class HardwareConfig(pTypes.GroupParameter):
-    on_board_sel = Qt.pyqtSignal(object)
-    on_SwitchMatrix_sel = Qt.pyqtSignal(object)
+    sigBoardSelected = Qt.pyqtSignal(object)
+    sigSwitchMatrixSelected = Qt.pyqtSignal(object)
 
     def __init__(self, **kwargs):
         super(HardwareConfig, self).__init__(**kwargs)
-        self.SwitchSel = None
+        self.SwitchMatrix = None
         self.Board = None
         self.addChild({'name': 'BoardSel',
                        'title': 'Board Selection',
@@ -295,12 +309,12 @@ class HardwareConfig(pTypes.GroupParameter):
                        'value': 'None',
                        })
         self.param('SwitchMatrixSel').sigValueChanged.connect(self.on_SwitchMatrixSel)
-        self.Add_SwitchSel()
+        self.Add_SwitchMatrix()
 
     def on_BoardSel(self):
         self.param('BoardConf').remove()
         self.Add_Board()
-        self.on_board_sel.emit(self.param('BoardConf'))
+        self.sigBoardSelected.emit(self.param('BoardConf'))
 
     def Add_Board(self):
         Board = self.param('BoardSel').value()
@@ -310,16 +324,16 @@ class HardwareConfig(pTypes.GroupParameter):
 
     def on_SwitchMatrixSel(self):
         self.param('SwitchMatrixConf').remove()
-        self.Add_SwitchSel()
-        self.on_SwitchMatrix_sel.emit(self.SwitchSel)
+        self.Add_SwitchMatrix()
+        self.sigSwitchMatrixSelected.emit(self.SwitchMatrix)
 
-    def Add_SwitchSel(self):
+    def Add_SwitchMatrix(self):
         Switch = self.param('SwitchMatrixSel').value()
         if Switch == 'None':
-            Board = None
+            SwitchMatrix = None
         else:
-            Board = BoardConf.SwitchMatrix[Switch]
+            SwitchMatrix = BoardConf.SwitchMatrix[Switch]
 
-        self.SwitchSel = self.addChild(SwitchMatrixConfig(Board=Board,
-                                                          name='SwitchMatrixConf',
-                                                          title='Switch Matrix Configuration'))
+        self.SwitchMatrix = self.addChild(SwitchMatrixConfig(Board=SwitchMatrix,
+                                                             name='SwitchMatrixConf',
+                                                             title='Switch Matrix Configuration'))

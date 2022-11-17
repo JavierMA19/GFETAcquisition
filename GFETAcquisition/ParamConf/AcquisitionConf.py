@@ -7,6 +7,7 @@ Created on Wed Dec 18 09:25:47 2019
 
 import pyqtgraph.parametertree.parameterTypes as pTypes
 import numpy as np
+from PyQt5 import Qt
 
 BiasConf = {'name': 'BiasConf',
             'title': 'Bias Voltages',
@@ -109,13 +110,16 @@ TimeMuxConf = {'name': 'TDMConf',
 
 
 class AcquisitionConfig(pTypes.GroupParameter):
+    sigFsChanged = Qt.pyqtSignal()
+    sigAcqChannelsChanged = Qt.pyqtSignal(object)
+    sigHardwareChanged = Qt.pyqtSignal(object)
 
     def __init__(self, HardConf, **kwargs):
         pTypes.GroupParameter.__init__(self, **kwargs)
 
+        self.DigitalMuxSignal = None
+        self.SelColumns = {}
         self.SwitchMatrix = None
-        HardConf.on_SwitchMatrix_sel.connect(self.on_SwitchMatrix_sel)
-        HardConf.on_board_sel .connect(self.on_board_sel)
         self.HardConf = HardConf
 
         # Add paramters
@@ -132,11 +136,16 @@ class AcquisitionConfig(pTypes.GroupParameter):
         self.SamplingConf.param('ACDCSel').param('AC').sigValueChanged.connect(self.on_AC_Sel)
         self.SamplingConf.param('ACDCSel').param('DC').sigValueChanged.connect(self.on_DC_Sel)
 
+        self.HardConf.sigSwitchMatrixSelected.connect(self.on_SwitchMatrix_sel)
+        self.HardConf.sigBoardSelected.connect(self.on_board_sel)
+        self.SwitchMatrix = self.HardConf.SwitchMatrix
+
         self.on_FsChanged()
         self.on_AC_Sel()
         self.on_DC_Sel()
 
     def on_board_sel(self):
+        self.HardConf.Board.sigAInputsChanged.connect(self.on_sigAInputsChanged)
         self.on_AC_Sel()
         self.on_DC_Sel()
 
@@ -145,10 +154,14 @@ class AcquisitionConfig(pTypes.GroupParameter):
             if self.SamplingConf.param('ACDCSel').param('AC').value():
                 self.SamplingConf.param('ACDCSel').param('DC').setValue(False)
 
+        self.on_sigAInputsChanged()
+
     def on_DC_Sel(self):
         if self.HardConf.Board.ACDCSwitch is not None:
             if self.SamplingConf.param('ACDCSel').param('DC').value():
                 self.SamplingConf.param('ACDCSel').param('AC').setValue(False)
+
+        self.on_sigAInputsChanged()
 
     def on_FsChanged(self):
         self.on_nColsChanged()
@@ -156,6 +169,8 @@ class AcquisitionConfig(pTypes.GroupParameter):
         Fs = self.SamplingConf.param('Fs').value()
         BufferSize = self.SamplingConf.param('BufferSize').value()
         self.SamplingConf.param('BufferTime').setValue(BufferSize * (1 / Fs))
+
+        self.sigFsChanged.emit()
 
     def on_BufferSizeChanged(self):
         Fs = self.SamplingConf.param('Fs').value()
@@ -173,11 +188,14 @@ class AcquisitionConfig(pTypes.GroupParameter):
             self.SamplingConf.param('BufferSize').setOpts(**{'readonly': False})
             self.TimeMuxConf.param('nCols').setValue(1)
 
-        self.SwitchMatrix.on_SelColumnsChanged.connect(self.on_SelColumnsChanged)
+        self.SwitchMatrix.sigSelColumnsChanged.connect(self.on_SelColumnsChanged)
+        self.sigHardwareChanged.emit(None)
 
     def on_SelColumnsChanged(self, Cols):
         self.SelColumns = Cols
         self.TimeMuxConf.param('nCols').setValue(len(Cols))
+        self.on_sigAInputsChanged()
+        self.sigFsChanged.emit()
 
     def on_nColsChanged(self):
         Fs = self.SamplingConf.param('Fs').value()
@@ -191,13 +209,60 @@ class AcquisitionConfig(pTypes.GroupParameter):
         BufferBlocks = self.TimeMuxConf.param('BufferBlocks').value()
         self.SamplingConf.param('BufferSize').setValue(BufferBlocks * nCols * ColSamps)
 
-        if self.SwitchMatrix is None:
+        self.CalcDigitalMuxSignal()
+
+    def CalcDigitalMuxSignal(self):
+        if not self.SwitchMatrix.SwitchMatrixPresent:
+            self.DigitalMuxSignal = None
+            self.TimeMuxConf.param('DoutCols').setValue('')
+            self.SelColumns = {}
             return
+
+        self.SelColumns = self.SwitchMatrix.Columns.GetColumns()
+        ColSamps = self.TimeMuxConf.param('ColSamps').value()
 
         dCols = np.array([], dtype=np.uint8)
         for k, v in self.SelColumns.items():
             c = np.ones((ColSamps, v.size)) * v
             dCols = np.vstack((dCols, c)) if dCols.size else c
 
-        self.DoutCols = dCols
-        self.TimeMuxConf.param('DoutCols').setValue(str(self.DoutCols))
+        self.DigitalMuxSignal = dCols
+        self.TimeMuxConf.param('DoutCols').setValue(str(self.DigitalMuxSignal))
+
+    def on_sigAInputsChanged(self):
+        self.sigAcqChannelsChanged.emit(self.GetAcqChannels())
+
+    def GetAcqChannels(self):
+        aiChannels = []
+        ChNames = []
+
+        if self.SamplingConf.param('ACDCSel').param('DC').value():
+            DCInputs = self.HardConf.Board.AInputs.GetDCChannels()
+            for chn, ai in DCInputs.items():
+                aiChannels.append(ai)
+                ChNames.append(chn + 'DC')
+
+        if self.SamplingConf.param('ACDCSel').param('AC').value():
+            ACInputs = self.HardConf.Board.AInputs.GetACChannels()
+            for chn, ai in ACInputs.items():
+                aiChannels.append(ai)
+                ChNames.append(chn + 'AC')
+
+        RawChannels = {}
+        for i, chn in enumerate(ChNames):
+            RawChannels[chn] = i
+
+        self.CalcDigitalMuxSignal()
+
+        DemuxChannels = {}
+        for chn, i in RawChannels.items():
+            for ic, (col, d) in enumerate(self.SelColumns.items()):
+                DemuxChannels[chn + col] = i * (ic + 1)
+
+        return {'RawChannels': RawChannels,
+                'DemuxChannels': DemuxChannels,
+                'aiChannels': aiChannels,
+                'ChNames': ChNames,
+                'Columns': self.SelColumns,
+                'DigitalMuxSignal': self.DigitalMuxSignal,
+                }

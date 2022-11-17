@@ -67,6 +67,37 @@ class PlotDataConfig(pTypes.GroupParameter):
                                                             tittle='Demux PSD',
                                                             visible=False))
 
+        self.AcqConf = AcquisitionConfig
+        self.AcqConf.sigFsChanged.connect(self.on_sigFsChanged)
+        self.AcqConf.sigAcqChannelsChanged.connect(self.on_sigAcqChannelsChanged)
+        self.AcqConf.sigHardwareChanged.connect(self.on_sigHardwareChanged)
+
+        self.on_update_bools()
+        self.on_sigHardwareChanged()
+        self.on_sigFsChanged()
+
+    def on_sigFsChanged(self):
+        Fs = self.AcqConf.SamplingConf.param('Fs').value()
+        self.RawPlotTimeConf.param('Fs').setValue(Fs)
+        self.RawPlotPSDConf.param('Fs').setValue(Fs)
+
+        FsDem = self.AcqConf.TimeMuxConf.param('FsCol').value()
+        self.DemuxPlotTimeConf.param('Fs').setValue(FsDem)
+        self.DemuxPlotPSDConf.param('Fs').setValue(FsDem)
+
+    def on_sigAcqChannelsChanged(self, AcqChannels):
+        self.RawPlotTimeConf.SetChannels(AcqChannels['RawChannels'])
+
+    def on_sigHardwareChanged(self):
+        if self.AcqConf.HardConf.SwitchMatrix.SwitchMatrixPresent:
+            self.pDemuxTime.setOpts(**{'enabled': True})
+            self.pDemuxPSD.setOpts(**{'enabled': True})
+        else:
+            self.pDemuxTime.setOpts(**{'enabled': False,
+                                       'value': False})
+            self.pDemuxPSD.setOpts(**{'enabled': False,
+                                      'value': False})
+
     def on_update_bools(self):
         self.bRawTime = self.pRawTime.value()
         self.bRawPSD = self.pRawPSD.value()
