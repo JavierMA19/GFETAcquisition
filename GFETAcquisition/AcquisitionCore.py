@@ -1,5 +1,7 @@
 from PyQt5 import Qt
 from GFETAcquisition.Threads.DaqInterface import WriteDigital, ReadAnalog, WriteAnalog
+from GFETAcquisition.Threads.Plotters import Plotter as TimePlotter
+from GFETAcquisition.Threads.Plotters import PSDPlotter
 
 
 class SwitchMatrixInterface:
@@ -52,8 +54,6 @@ class HardwareInterface(Qt.QObject):
         self.InitAinputs()
         self.Init_ACDCSwitch()
 
-
-
         # self.aiChNames = self.cDCChannels.keys()
         # self.cDCChannels = self.Board.AInputs.GetDCChannels()
         # self.cACChannels = self.Board.AInputs.GetACChannels()
@@ -97,34 +97,60 @@ class HardwareInterface(Qt.QObject):
         Channels = self.AcqConf.GetAcqChannels()
         self.aiIns = ReadAnalog(Channels['aiChannels'])
 
-    def StartRead(self ):
+    def StartRead(self):
         # self.Ains = ReadAnalog(self.aiAC)
         # self.Select_ACDCSwitch('AC')
         self.aiIns.EveryNEvent = self.on_RawData
         # self.Ains.DoneEvent = self.on_AC_Data
-        self.aiIns.ReadContData(Fs=1000,
-                           EverySamps=1000)
+        Fs = self.AcqConf.SamplingConf.param('Fs').value()
+        nSamps = self.AcqConf.SamplingConf.param('BufferSize').value()
+        self.aiIns.ReadContData(Fs=Fs, EverySamps=nSamps)
 
     def on_RawData(self, Data):
         Ids = Data / self.cGains['ACGain']
         self.SigRawData.emit(Ids)
 
     def StopRead(self):
-        self.Ains.ClearTask()
+        self.aiIns.StopTask()
+
 
 
 class AcquisitionMachine(Qt.QObject):
 
-    def __init__(self, AcquisitionConf):
+    def __init__(self, AcquisitionConf, PlotDataConf):
         super(AcquisitionMachine, self).__init__()
 
-        self.HardInt = HardwareInterface(AcquisitionConf)
-        self.HardInt.SigRawData.connect(self.on_RawData)
+        self.HardInt = None
+        self.thRawTimePlt = None
+
+        self.AcqConf = AcquisitionConf
+        self.PlotConf = PlotDataConf
+
+        self.AcqRunning = False
+
+    def InitPlots(self):
+        if self.PlotConf.bRawTime:
+            kwargs = self.PlotConf.RawPlotTimeConf.GetParams()
+            self.thRawTimePlt = TimePlotter(**kwargs)
+            self.thRawTimePlt.start()
+
+        # if self.PlotConf.bRawPSD:
+        #
+        # if self.PlotConf.bDemuxTime:
+        #
+        # if self.PlotConf.bDemuxPSD:
 
     def StartAcquisition(self):
-        self.HardInt.StartRead()
+        if self.AcqRunning:
+            self.HardInt.StopRead()
+            self.AcqRunning = False
+        else:
+            self.HardInt = HardwareInterface(self.AcqConf)
+            self.HardInt.SigRawData.connect(self.on_RawData)
+            self.HardInt.StartRead()
+            self.InitPlots()
+            self.AcqRunning = True
 
     def on_RawData(self, Data):
-        print(Data.shape)
-
-
+        # print(Data.shape)
+        self.thRawTimePlt.AddData(Data)

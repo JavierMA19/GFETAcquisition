@@ -81,7 +81,8 @@ class MainWindow(Qt.QWidget):
 
         layout.addWidget(self.treepar)
 
-        self.AcqMach = AcquisitionMachine(AcquisitionConf=self.AcqConf)
+        self.AcqMach = AcquisitionMachine(AcquisitionConf=self.AcqConf,
+                                          PlotDataConf=self.PlotDataConf)
 
         #
         # self.Charact = CharacterizationMachine(SweepsConf=self.SweepsConf,
