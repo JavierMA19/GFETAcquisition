@@ -15,10 +15,10 @@ from GFETAcquisition.ParamConf.HardwareConf import HardwareConfig
 from GFETAcquisition.ParamConf.AcquisitionConf import AcquisitionConfig
 from GFETAcquisition.ParamConf.PlotDataConf import PlotDataConfig
 from GFETAcquisition.AcquisitionCore import AcquisitionMachine
+from GFETAcquisition import __version__
 
 import sys
 
-_version = '0.2.0.b2'
 
 
 class MainWindow(Qt.QWidget):
@@ -29,7 +29,7 @@ class MainWindow(Qt.QWidget):
         layout = Qt.QVBoxLayout(self)
 
         self.setGeometry(650, 20, 400, 800)
-        self.setWindowTitle('GFET Characterization v' + _version)
+        self.setWindowTitle('GFET Characterization v' + __version__)
 
         # Add objects to main window
         # start Button
@@ -56,7 +56,8 @@ class MainWindow(Qt.QWidget):
                                        title='Hardware Config',
                                        expanded=False)
 
-        self.AcqConf = AcquisitionConfig(HardConf=self.HardConf,
+        self.AcqConf = AcquisitionConfig(QTparent=self,
+                                         HardConf=self.HardConf,
                                          name='AcqConfig',
                                          title='Acquisition Configuration',
                                          expanded=False)

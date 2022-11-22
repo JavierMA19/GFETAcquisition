@@ -5,3 +5,4 @@ Created on Tue Nov 15 17:27:23 2016
 @author: aguimera
 """
 
+from _version import __version__

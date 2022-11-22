@@ -87,6 +87,8 @@ class PlotDataConfig(pTypes.GroupParameter):
 
     def on_sigAcqChannelsChanged(self, AcqChannels):
         self.RawPlotTimeConf.SetChannels(AcqChannels['RawChannels'])
+        nch = self.RawPlotTimeConf.param('nChannels').value()
+        self.RawPlotPSDConf.param('nChannels').setValue(nch)
 
     def on_sigHardwareChanged(self):
         if self.AcqConf.HardConf.SwitchMatrix.SwitchMatrixPresent:

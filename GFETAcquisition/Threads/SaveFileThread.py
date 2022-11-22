@@ -16,58 +16,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-SaveFilePars = [{'name': 'Save File',
-                 'type': 'action'
-                 },
-                {'name': 'File Path',
-                 'type': 'str',
-                 'value': ''
-                 },
-                {'name': 'MaxSize',
-                 'type': 'int',
-                 'siPrefix': True,
-                 'suffix': 'B',
-                 'limits': (1e6, 1e12),
-                 'step': 100e6,
-                 'value': 50e6
-                 },
-                {'name': 'Enabled',
-                 'type': 'bool',
-                 'value': False,
-                 },
-                ]
-
-
-class SaveFileParameters(pTypes.GroupParameter):
-    def __init__(self, QTparent, **kwargs):
-        pTypes.GroupParameter.__init__(self, **kwargs)
-
-        self.QTparent = QTparent
-        self.addChildren(SaveFilePars)
-        self.param('Save File').sigActivated.connect(self.FileDialog)
-
-    def FileDialog(self):
-        RecordFile, _ = QFileDialog.getSaveFileName(self.QTparent,
-                                                    "Recording File",
-                                                    "",
-                                                    )
-        if RecordFile:
-            if not RecordFile.endswith('.h5'):
-                RecordFile = RecordFile + '.h5'
-            self.param('File Path').setValue(RecordFile)
-
-    def FilePath(self):
-        return self.param('File Path').value()
-
-
-class FileBuffer():
-    def __init__(self, FileName, MaxSize, nChannels, Fs=None, ChnNames=None):
+class FileBuffer:
+    def __init__(self, FileName, MaxSize, nChannels, Fields):
         self.FileBase = FileName.split('.h5')[0]
         self.PartCount = 0
         self.nChannels = nChannels
         self.MaxSize = MaxSize
-        self.Fs = Fs
-        self.ChnNames = ChnNames
+        self.Fields = Fields
         self._initFile()
 
     def _initFile(self):
@@ -75,21 +30,19 @@ class FileBuffer():
             FileName = '{}_{}.h5'.format(self.FileBase, self.PartCount)
         else:
             FileName = self.FileBase + '.h5'
+
         self.FileName = FileName
         self.PartCount += 1
         self.h5File = h5py.File(FileName, 'w')
-        if self.Fs is not None:
-            self.FsDset = self.h5File.create_dataset('Fs', 
-                                                     data=self.Fs)
-        if self.ChnNames is not None:
-            self.ChnNamesDset = self.h5File.create_dataset('ChnNames', 
-                                                           dtype='S10',
-                                                           data=self.ChnNames)
-        
+        for k, v in self.Fields:
+            self.h5File.create_dataset(k, data=v)
+
         self.Dset = self.h5File.create_dataset('data',
                                                shape=(0, self.nChannels),
                                                maxshape=(None, self.nChannels),
-                                               compression="gzip")
+                                               # compression="gzip",
+                                               compression='lzf',
+                                               )
 
     def AddSample(self, Sample):
         nSamples = Sample.shape[0]
@@ -100,7 +53,7 @@ class FileBuffer():
 
         stat = os.stat(self.FileName)
         if stat.st_size > self.MaxSize:
-#            print(stat.st_size, self.MaxSize)
+            self.h5File.close()
             self._initFile()
 
     # def RefreshPlot(self):
@@ -111,15 +64,14 @@ class FileBuffer():
 
 
 class DataSavingThread(Qt.QThread):
-    def __init__(self, FileName, nChannels, Fs=None, ChnNames=None, 
+    def __init__(self, FileName, nChannels, Fields,
                  MaxSize=None, dtype='float'):
         super(DataSavingThread, self).__init__()
         self.NewData = None
         self.FileBuff = FileBuffer(FileName=FileName,
                                    nChannels=nChannels,
                                    MaxSize=MaxSize,
-                                   Fs=Fs,
-                                   ChnNames=ChnNames)
+                                   Fields=Fields)
 
     def run(self, *args, **kwargs):
         while True:
@@ -134,9 +86,7 @@ class DataSavingThread(Qt.QThread):
             print('Error Saving !!!!')
         else:
             self.NewData = NewData
-    
-    def stop (self):
+
+    def stop(self):
         self.FileBuff.h5File.close()
         self.terminate()
-
-

@@ -9,20 +9,14 @@ Created on Wed Mar  6 12:29:47 2019
 
 from __future__ import print_function
 from PyQt5 import Qt
-from qtpy.QtWidgets import (QHeaderView, QCheckBox, QSpinBox, QLineEdit,
-                            QDoubleSpinBox, QTextEdit, QComboBox,
-                            QTableWidget, QAction, QMessageBox, QFileDialog,
-                            QInputDialog)
 
-from qtpy import QtWidgets, uic
-import numpy as np
+from qtpy import QtWidgets
 import time
 import os
 import sys
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
-import PyqtTools.FileModule as FileMod
-import PyqtTools.PlotModule as PltMod
+import GFETAcquisition.ParamConf.FileModule as FileMod
 
 from PyqtTools.PlotModule import Plotter as TimePlt
 from PyqtTools.PlotModule import PlotterParameters as TimePltPars

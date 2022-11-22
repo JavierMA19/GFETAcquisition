@@ -2,6 +2,8 @@ from PyQt5 import Qt
 from GFETAcquisition.Threads.DaqInterface import WriteDigital, ReadAnalog, WriteAnalog
 from GFETAcquisition.Threads.Plotters import Plotter as TimePlotter
 from GFETAcquisition.Threads.Plotters import PSDPlotter
+from GFETAcquisition.Threads.SaveFileThread import DataSavingThread
+from datetime import datetime
 
 
 class SwitchMatrixInterface:
@@ -114,16 +116,19 @@ class HardwareInterface(Qt.QObject):
         self.aiIns.StopTask()
 
 
-
 class AcquisitionMachine(Qt.QObject):
 
     def __init__(self, AcquisitionConf, PlotDataConf):
         super(AcquisitionMachine, self).__init__()
 
+        self.FileName = None
+        self.thRawTime = None
+        self.thRawPSD = None
+        self.OldTime = datetime.now()
         self.HardInt = None
-        self.thRawTimePlt = None
 
         self.AcqConf = AcquisitionConf
+
         self.PlotConf = PlotDataConf
 
         self.AcqRunning = False
@@ -131,11 +136,19 @@ class AcquisitionMachine(Qt.QObject):
     def InitPlots(self):
         if self.PlotConf.bRawTime:
             kwargs = self.PlotConf.RawPlotTimeConf.GetParams()
-            self.thRawTimePlt = TimePlotter(**kwargs)
-            self.thRawTimePlt.start()
+            self.thRawTime = TimePlotter(**kwargs)
+            self.thRawTime.start()
+        else:
+            self.thRawTime = None
 
-        # if self.PlotConf.bRawPSD:
-        #
+        if self.PlotConf.bRawPSD:
+            pkw = self.PlotConf.RawPlotTimeConf.GetParams()
+            kwargs = self.PlotConf.RawPlotPSDConf.GetParams()
+            self.thRawPSD = PSDPlotter(ChannelConf=pkw['ChannelConf'], **kwargs)
+            self.thRawPSD.start()
+        else:
+            self.thRawPSD = None
+
         # if self.PlotConf.bDemuxTime:
         #
         # if self.PlotConf.bDemuxPSD:
@@ -145,12 +158,25 @@ class AcquisitionMachine(Qt.QObject):
             self.HardInt.StopRead()
             self.AcqRunning = False
         else:
-            self.HardInt = HardwareInterface(self.AcqConf)
-            self.HardInt.SigRawData.connect(self.on_RawData)
-            self.HardInt.StartRead()
-            self.InitPlots()
-            self.AcqRunning = True
+            self.CheckSave()
+            # self.HardInt = HardwareInterface(self.AcqConf)
+            # self.HardInt.SigRawData.connect(self.on_RawData)
+            # self.HardInt.StartRead()
+            # self.InitPlots()
+            # self.AcqRunning = True
+
+    def CheckSave(self):
+        if not self.AcqConf.FileConf.param('bSave').value():
+            self.AcqConf.FileConf.on_Save()
+        self.AcqConf.FileConf.CheckFile()
+
+        self.FileName = self.AcqConf.FileConf.FileName
 
     def on_RawData(self, Data):
-        # print(Data.shape)
-        self.thRawTimePlt.AddData(Data)
+        time = datetime.now()
+        print(time-self.OldTime)
+        self.OldTime = time
+        if self.thRawTime is not None:
+            self.thRawTime.AddData(Data)
+        if self.thRawPSD is not None:
+            self.thRawPSD.AddData(Data)

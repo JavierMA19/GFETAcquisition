@@ -8,6 +8,8 @@ Created on Wed Dec 18 09:25:47 2019
 import pyqtgraph.parametertree.parameterTypes as pTypes
 import numpy as np
 from PyQt5 import Qt
+import math
+from GFETAcquisition.ParamConf.SaveFaileConf import SaveDataConf
 
 BiasConf = {'name': 'BiasConf',
             'title': 'Bias Voltages',
@@ -114,7 +116,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
     sigAcqChannelsChanged = Qt.pyqtSignal(object)
     sigHardwareChanged = Qt.pyqtSignal(object)
 
-    def __init__(self, HardConf, **kwargs):
+    def __init__(self, QTparent, HardConf, **kwargs):
         pTypes.GroupParameter.__init__(self, **kwargs)
 
         self.DigitalMuxSignal = None
@@ -123,6 +125,9 @@ class AcquisitionConfig(pTypes.GroupParameter):
         self.HardConf = HardConf
 
         # Add paramters
+        self.FileConf = self.addChild(SaveDataConf(QTparent=QTparent,
+                                                   name='FileConf',
+                                                   title='Data File'))
         self.BiasConf = self.addChild(BiasConf)
         self.SamplingConf = self.addChild(SamplingConf)
         self.TimeMuxConf = self.SamplingConf.addChild(TimeMuxConf)
@@ -135,6 +140,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
         self.SamplingConf.param('BufferSize').sigValueChanged.connect(self.on_BufferSizeChanged)
         self.SamplingConf.param('ACDCSel').param('AC').sigValueChanged.connect(self.on_AC_Sel)
         self.SamplingConf.param('ACDCSel').param('DC').sigValueChanged.connect(self.on_DC_Sel)
+        self.SamplingConf.param('BufferTime').sigValueChanged.connect(self.on_BufferTimeChanged)
 
         self.HardConf.sigSwitchMatrixSelected.connect(self.on_SwitchMatrix_sel)
         self.HardConf.sigBoardSelected.connect(self.on_board_sel)
@@ -176,6 +182,19 @@ class AcquisitionConfig(pTypes.GroupParameter):
         Fs = self.SamplingConf.param('Fs').value()
         BufferSize = self.SamplingConf.param('BufferSize').value()
         self.SamplingConf.param('BufferTime').setValue(BufferSize * (1 / Fs))
+
+    def on_BufferTimeChanged(self):
+        bt = self.SamplingConf.param('BufferTime').value()
+        Fs = self.SamplingConf.param('Fs').value()
+        nCols = self.TimeMuxConf.param('nCols').value()
+        ColSamps = self.TimeMuxConf.param('ColSamps').value()
+
+        if bt < 0.3:
+            bs = math.ceil(0.3 * Fs)
+            if self.SwitchMatrix.SwitchMatrixPresent:
+                self.TimeMuxConf.param('BufferBlocks').setValue(bs/(ColSamps*nCols))
+            else:
+                self.SamplingConf.param('BufferSize').setValue(bs)
 
     def on_SwitchMatrix_sel(self, SwitchMatrix):
         self.SwitchMatrix = SwitchMatrix
@@ -266,3 +285,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
                 'Columns': self.SelColumns,
                 'DigitalMuxSignal': self.DigitalMuxSignal,
                 }
+
+
+
+

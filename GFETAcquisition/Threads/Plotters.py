@@ -384,8 +384,8 @@ class PgPlotWindow(Qt.QWidget):
 
 
 labelStyle = {'color': '#FFF',
-              'font-size': '7pt',
-              'bold': True}
+              'font-size': '8pt',
+              'bold': False}
 
 
 class Plotter(Qt.QThread):
@@ -424,28 +424,34 @@ class Plotter(Qt.QThread):
                                   # mode='peak',
                                   mode='subsample',
                                   )
+                p.setClipToView(False)
                 if xlink is not None:
                     p.setXLink(xlink)
                 xlink = p
 
-                lab = ''
+                # lab = ''
+                p.addLegend(offset=(0, 0),
+                            labelTextSize='7pt')
                 for chn in chs:
-                    lab = lab + chn + '\n\r'
+                    # lab = lab + chn + '\n\r'
                     self.ChannelConf[chn] = ChannelConf[chn]
                     col = ChannelConf[chn]['color']
                     width = ChannelConf[chn]['width']
                     c = p.plot(pen=pg.mkPen(color=col,
-                                            width=width))
+                                            width=width),
+                               # clipToView=False,
+                               autoDownsample=True,
+                               name=chn,
+                               )
                     self.Plots[chn] = p
                     self.Curves[chn] = c
 
-                p.setLabel(axis='left',
-                           text=lab,
-                           units='A',
-                           **labelStyle)
+                # p.setLabel(axis='left',
+                #            text=lab,
+                #            units='A',
+                #            **labelStyle)
 
             if p is not None:
-                p.setClipToView(True)
                 p.showAxis('bottom')
                 if not self.ShowSamples:
                     p.setLabel('bottom', 'Time', units='s', **labelStyle)
@@ -525,11 +531,6 @@ PSDPars = ({'name': 'Fs',
             'type': 'float',
             'siPrefix': True,
             'suffix': 's'},
-           {'name': 'AllChannels',
-            'title': 'Show All Channels',
-            'type': 'bool',
-            'value': True,
-            },
            )
 
 PSDParsList = ('Fs', 'nFFT', 'nAvg', 'nChannels', 'scaling')
@@ -546,8 +547,6 @@ class PSDPlotConfig(pTypes.GroupParameter):
         self.param('Fmin').sigValueChanged.connect(self.on_FminChange)
         self.param('nFFT').sigValueChanged.connect(self.on_nFFTChange)
         self.param('nAvg').sigValueChanged.connect(self.on_nAvgChange)
-
-        self.ChannelConf = None
 
     def on_FsChange(self):
         Fs = self.param('Fs').value()
@@ -585,18 +584,6 @@ class PSDPlotConfig(pTypes.GroupParameter):
                 continue
             PSDKwargs[p.name()] = p.value()
 
-        ChannelConf = {}
-        for Ch in self.ChannelConf:
-            chp = {}
-            for pp in Ch['children']:
-                chp[pp['name']] = pp['value']
-
-            if self.param('AllChannels').value():
-                ChannelConf[chp['name']] = chp
-            if chp['Enable']:
-                ChannelConf[chp['name']] = chp
-
-        PSDKwargs['ChannelConf'] = ChannelConf
         return PSDKwargs
 
 
@@ -628,14 +615,15 @@ class PSDPlotter(Qt.QThread):
             p.setLabel('left', ' PSD', units=' V**2/Hz', **labelStyle)
         else:
             p.setLabel('left', ' PSD', units=' V**2', **labelStyle)
-        # self.Legend = p.addLegend()
 
+        p.addLegend(offset=(10, 10),
+                    labelTextSize='7pt')
         for chn, ch in ChannelConf.items():
             self.ChannelConf[chn] = ch
             c = p.plot(pen=pg.mkPen(ch['color'],
                                     width=ch['width'],
-                                    name=chn))
-            # self.Legend.addItem(c, chn)
+                                    name=chn),
+                       )
             self.Plots[chn] = p
             self.Curves[chn] = c
 

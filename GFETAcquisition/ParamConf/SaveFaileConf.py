@@ -11,9 +11,9 @@ import os
 
 import pyqtgraph.parametertree.parameterTypes as pTypes
 from PyQt5.QtWidgets import QFileDialog
+from datetime import datetime
 
-
-class SaveDataParams(pTypes.GroupParameter):
+class SaveDataConf(pTypes.GroupParameter):
     def __init__(self, QTparent, **kwargs):
         pTypes.GroupParameter.__init__(self, **kwargs)
 
@@ -22,7 +22,7 @@ class SaveDataParams(pTypes.GroupParameter):
                            'title': '...',
                            'type': 'action'},
                           {'name': 'bSave',
-                           'title': 'Save Charcterization',
+                           'title': 'Save Recording',
                            'type': 'bool',
                            'value': False,
                            'default': False},
@@ -41,25 +41,19 @@ class SaveDataParams(pTypes.GroupParameter):
         pathfile, file = os.path.split(self.FileName)
         filename, extension = os.path.splitext(file)
         counter = 1
-        filename = filename.split('-Cy_')[0]
-        if Col is not None:
-            filename = filename.split('-Col')[0]
-            filename += '-{}'.format(Col)
-            fn = filename + extension
-            self.FileName = os.path.join(pathfile, fn)
+        filename = filename.split('-T_')[0]
 
-        while os.path.exists(self.FileName):
-            fn = '{0}-Cy_{1:02}{2}'.format(filename, counter, extension)
-            self.FileName = os.path.join(pathfile, fn)
-            counter += 1
+        self.FileName = '{}-T_{}.{}'.format(filename,
+                                            datetime.now(),
+                                            extension)
         self.param('FileName').setValue(self.FileName)
 
     def on_Save(self):
         RecordFile, _ = QFileDialog.getSaveFileName(self.QTparent,
                                                     "Data File")
         if RecordFile:
-            if not RecordFile.endswith('.pkl'):
-                RecordFile = RecordFile + '.pkl'
+            if not RecordFile.endswith('.h5'):
+                RecordFile = RecordFile + '.h5'
             self.param('FileName').setValue(RecordFile)
             self.FileName = RecordFile
             self.param('bSave').setValue(True)
