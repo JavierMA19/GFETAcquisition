@@ -9,7 +9,7 @@ import pyqtgraph.parametertree.parameterTypes as pTypes
 import numpy as np
 from PyQt5 import Qt
 import math
-from GFETAcquisition.ParamConf.SaveFaileConf import SaveDataConf
+from GFETAcquisition.ParamConf.SaveFileConf import SaveDataConf
 
 BiasConf = {'name': 'BiasConf',
             'title': 'Bias Voltages',
