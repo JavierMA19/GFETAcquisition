@@ -4,6 +4,7 @@ from GFETAcquisition.Threads.Plotters import Plotter as TimePlotter
 from GFETAcquisition.Threads.Plotters import PSDPlotter
 from GFETAcquisition.Threads.SaveFileThread import DataSavingThread
 from datetime import datetime
+from GFETAcquisition import __version__
 
 
 class SwitchMatrixInterface:
@@ -99,7 +100,7 @@ class HardwareInterface(Qt.QObject):
         Channels = self.AcqConf.GetAcqChannels()
         self.aiIns = ReadAnalog(Channels['aiChannels'])
 
-    def StartRead(self):
+    def StartRead(self, **kwargs):
         # self.Ains = ReadAnalog(self.aiAC)
         # self.Select_ACDCSwitch('AC')
         self.aiIns.EveryNEvent = self.on_RawData
@@ -121,6 +122,8 @@ class AcquisitionMachine(Qt.QObject):
     def __init__(self, AcquisitionConf, PlotDataConf):
         super(AcquisitionMachine, self).__init__()
 
+        self.SampSet = None
+        self.thSave = None
         self.FileName = None
         self.thRawTime = None
         self.thRawPSD = None
@@ -158,24 +161,40 @@ class AcquisitionMachine(Qt.QObject):
             self.HardInt.StopRead()
             self.AcqRunning = False
         else:
+            Channels = self.AcqConf.GetAcqChannels()
+            self.SampSet = self.AcqConf.GetConf()
+            self.SampSet.update(Channels)
             self.CheckSave()
-            # self.HardInt = HardwareInterface(self.AcqConf)
-            # self.HardInt.SigRawData.connect(self.on_RawData)
-            # self.HardInt.StartRead()
-            # self.InitPlots()
-            # self.AcqRunning = True
+            self.HardInt = HardwareInterface(self.AcqConf)
+            self.HardInt.SigRawData.connect(self.on_RawData)
+            self.HardInt.StartRead(**self.SampSet)
+            self.InitPlots()
+            self.AcqRunning = True
 
     def CheckSave(self):
         if not self.AcqConf.FileConf.param('bSave').value():
             self.AcqConf.FileConf.on_Save()
         self.AcqConf.FileConf.CheckFile()
-
         self.FileName = self.AcqConf.FileConf.FileName
+
+        if self.FileName is not None:
+            Fields = self.AcqConf.HardConf.saveState('user')
+            Fields['version'] = __version__
+            self.thSave = DataSavingThread(FileName=self.FileName,
+                                           MaxSize=self.AcqConf.FileConf.param('MaxSize').value(),
+                                           nChannels=self.SampSet['nRawChannels'],
+                                           SampSettings=self.SampSet,
+                                           Fields=Fields)
+            self.thSave.start()
+        else:
+            self.thSave = None
 
     def on_RawData(self, Data):
         time = datetime.now()
-        print(time-self.OldTime)
+        print(time - self.OldTime)
         self.OldTime = time
+        if self.thSave is not None:
+            self.thSave.AddData(Data)
         if self.thRawTime is not None:
             self.thRawTime.AddData(Data)
         if self.thRawPSD is not None:

@@ -583,14 +583,12 @@ class PSDPlotConfig(pTypes.GroupParameter):
             if p.name() not in PSDParsList:
                 continue
             PSDKwargs[p.name()] = p.value()
-
         return PSDKwargs
 
 
 class PSDPlotter(Qt.QThread):
 
     def __init__(self, Fs, nFFT, nAvg, nChannels, scaling, ChannelConf):
-
         super(PSDPlotter, self).__init__()
 
         self.scaling = scaling

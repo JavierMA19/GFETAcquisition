@@ -111,6 +111,16 @@ TimeMuxConf = {'name': 'TDMConf',
                }
 
 
+def GetParamTreeVals(ParamTree):
+    Vals = {}
+    for p in ParamTree.children():
+        if p.type() == 'group':
+            Vals[p.name()] = GetParamTreeVals(p)
+        else:
+            Vals[p.name()] = p.value()
+    return Vals
+
+
 class AcquisitionConfig(pTypes.GroupParameter):
     sigFsChanged = Qt.pyqtSignal()
     sigAcqChannelsChanged = Qt.pyqtSignal(object)
@@ -127,6 +137,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
         # Add paramters
         self.FileConf = self.addChild(SaveDataConf(QTparent=QTparent,
                                                    name='FileConf',
+                                                   type='group',
                                                    title='Data File'))
         self.BiasConf = self.addChild(BiasConf)
         self.SamplingConf = self.addChild(SamplingConf)
@@ -192,7 +203,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
         if bt < 0.3:
             bs = math.ceil(0.3 * Fs)
             if self.SwitchMatrix.SwitchMatrixPresent:
-                self.TimeMuxConf.param('BufferBlocks').setValue(bs/(ColSamps*nCols))
+                self.TimeMuxConf.param('BufferBlocks').setValue(bs / (ColSamps * nCols))
             else:
                 self.SamplingConf.param('BufferSize').setValue(bs)
 
@@ -279,6 +290,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
                 DemuxChannels[chn + col] = i * (ic + 1)
 
         return {'RawChannels': RawChannels,
+                'nRawChannels': len(RawChannels),
                 'DemuxChannels': DemuxChannels,
                 'aiChannels': aiChannels,
                 'ChNames': ChNames,
@@ -286,6 +298,6 @@ class AcquisitionConfig(pTypes.GroupParameter):
                 'DigitalMuxSignal': self.DigitalMuxSignal,
                 }
 
-
-
-
+    def GetConf(self):
+        p = GetParamTreeVals(self)
+        return p

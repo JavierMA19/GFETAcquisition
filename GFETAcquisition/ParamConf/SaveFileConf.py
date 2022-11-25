@@ -13,6 +13,7 @@ import pyqtgraph.parametertree.parameterTypes as pTypes
 from PyQt5.QtWidgets import QFileDialog
 from datetime import datetime
 
+
 class SaveDataConf(pTypes.GroupParameter):
     def __init__(self, QTparent, **kwargs):
         pTypes.GroupParameter.__init__(self, **kwargs)
@@ -26,6 +27,13 @@ class SaveDataConf(pTypes.GroupParameter):
                            'type': 'bool',
                            'value': False,
                            'default': False},
+                          {'name': 'MaxSize',
+                           'title': 'Max sile size',
+                           'type': 'float',
+                           'default': 2e9,
+                           'value': 2e9,
+                           'siPrefix': True,
+                           'suffix': 'B'},
                           {'name': 'FileName',
                            'title': 'Data File',
                            'type': 'str',
@@ -43,9 +51,9 @@ class SaveDataConf(pTypes.GroupParameter):
         counter = 1
         filename = filename.split('-T_')[0]
 
-        self.FileName = '{}-T_{}.{}'.format(filename,
-                                            datetime.now(),
-                                            extension)
+        self.FileName = '{}-T_{}{}'.format(filename,
+                                           datetime.now().strftime("%m-%d-%Y-%H-%M-%S"),
+                                           extension)
         self.param('FileName').setValue(self.FileName)
 
     def on_Save(self):

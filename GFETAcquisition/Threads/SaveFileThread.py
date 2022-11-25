@@ -17,7 +17,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 
-
 def save_dict_to_hdf5(dic, filename):
     """
     ....
@@ -38,7 +37,10 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
         else:
-            raise ValueError('Cannot save %s type' % type(item))
+            try:
+                h5file[path + key] = str(item)
+            except:
+                raise ValueError('Cannot save %s type' % type(item))
 
 
 def load_dict_from_hdf5(filename):
@@ -65,6 +67,7 @@ def recursively_load_dict_contents_from_group(h5file, path):
             ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
 
+
 class FileBuffer:
     def __init__(self, FileName, MaxSize, nChannels, SampSettings, Fields=None, dtype=float):
         self.FileBase = FileName.split('.h5')[0]
@@ -86,9 +89,9 @@ class FileBuffer:
         self.h5File = h5py.File(FileName, 'w')
 
         if self.PartCount == 0 and self.Fields is not None:
-            recursively_save_dict_contents_to_group(self.h5File, 'Configuration', self.Fields)
+            recursively_save_dict_contents_to_group(self.h5File, 'Configuration/', self.Fields)
 
-        recursively_save_dict_contents_to_group(self.h5File, 'SamplingSettings', self.SampSettings)
+        recursively_save_dict_contents_to_group(self.h5File, 'SamplingSettings/', self.SampSettings)
         self.h5File.create_dataset('Time', data=str(datetime.now()))
         self.Dset = self.h5File.create_dataset('data',
                                                shape=(0, self.nChannels),
@@ -98,7 +101,6 @@ class FileBuffer:
                                                dtype=self.dtype
                                                )
         self.PartCount += 1
-
 
     def AddSample(self, Sample):
         nSamples = Sample.shape[0]
@@ -128,9 +130,11 @@ class DataSavingThread(Qt.QThread):
     def run(self, *args, **kwargs):
         while True:
             if self.NewData is not None:
+                # print(self.NewData.shape)
                 self.FileBuff.AddSample(self.NewData)
                 self.NewData = None
             else:
+                # print('wait')
                 Qt.QThread.msleep(100)
 
     def AddData(self, NewData):
@@ -144,22 +148,20 @@ class DataSavingThread(Qt.QThread):
         self.terminate()
 
 
-
-
 if __name__ == '__main__':
 
     import pickle
 
     # data = np.random.randint(low=-10, high=10, size=(1000000, 16), dtype='int32')
-    data = np.random.rand(1000000, 16)
+    data = np.random.rand(10000, 16)
     # data = np.float32(data)
     print(data.dtype)
-    Iters = 5
+    Iters = 10
 
     conf = pickle.load(open('state.pkl', 'rb'))
-    SampSet = {'Fs':1000,
-               'nCols':32,
-               'SampsCol':10}
+    SampSet = {'Fs': 1000,
+               'nCols': 32,
+               'SampsCol': 10}
 
     file = FileBuffer(FileName='test.h5', MaxSize=1000e6, nChannels=16,
                       SampSettings=SampSet, Fields=conf, dtype=data.dtype)
@@ -171,15 +173,13 @@ if __name__ == '__main__':
     file.h5File.close()
 
     time = datetime.now() - OldTime
-    print(time, (data.size*Iters)/time.total_seconds(), 'Samps/sec')
+    print(time, (data.size * Iters) / time.total_seconds(), 'Samps/sec')
 
     # should test for bad type
 
     hf = h5py.File('test_0.h5', 'r')
-    # ss = recursively_load_dict_contents_from_group(hf, 'SamplingSettings')
     print(hf.keys())
+    ss = recursively_load_dict_contents_from_group(hf, 'SamplingSettings/')
+    print(ss)
 
     print(hf['data'].shape)
-
-
-
