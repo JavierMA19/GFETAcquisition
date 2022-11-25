@@ -153,7 +153,7 @@ if __name__ == '__main__':
     import pickle
 
     # data = np.random.randint(low=-10, high=10, size=(1000000, 16), dtype='int32')
-    data = np.random.rand(10000, 16)
+    data = np.random.rand(100000, 16)
     # data = np.float32(data)
     print(data.dtype)
     Iters = 10

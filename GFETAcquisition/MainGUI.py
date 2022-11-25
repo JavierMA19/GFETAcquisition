@@ -35,22 +35,6 @@ class MainWindow(Qt.QWidget):
         # start Button
         self.btnAcq = Qt.QPushButton("Start Measure")
         layout.addWidget(self.btnAcq)
-        #
-        # self.InfoStr = Parameter.create(**{'name': 'InfoStr',
-        #                                    'title': 'Status Info',
-        #                                    'type': 'text',
-        #                                    'expanded': True,
-        #                                    'readonly': True})
-
-        # self.SaveStateConf = SaveSateParams(QTparent=self,
-        #                                     name='SaveStateConf',
-        #                                     title='Save Load State',
-        #                                     expanded=False)
-
-        # self.SaveFileConf = SaveDataParams(QTparent=self,
-        #                                    name='SaveFileConf',
-        #                                    title='Save Data',
-        #                                    expanded=True)
 
         self.HardConf = HardwareConfig(name='HardConf',
                                        title='Hardware Config',
@@ -85,11 +69,6 @@ class MainWindow(Qt.QWidget):
         self.AcqMach = AcquisitionMachine(AcquisitionConf=self.AcqConf,
                                           PlotDataConf=self.PlotDataConf)
 
-        #
-        # self.Charact = CharacterizationMachine(SweepsConf=self.SweepsConf,
-        #                                        InfoOut=self.InfoStr)
-        #
-        # self.Charact.CharactFinished.connect(self.on_CharactFinished)
         self.btnAcq.clicked.connect(self.on_btnStart)
 
     def on_btnStart(self):
