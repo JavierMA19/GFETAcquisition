@@ -236,6 +236,9 @@ class TimePlotConfig(pTypes.GroupParameter):
             Chs.append(Ch)
 
         self.ChannelConf = Chs
+        self.param('Windows').setValue(math.ceil(nChannels/8))
+        self.param('SelIndex').setValue("0:{}".format(nChannels))
+
 
     def on_SelIndex(self):
         strind = self.param('SelIndex').value()

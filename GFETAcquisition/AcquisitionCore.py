@@ -1,3 +1,4 @@
+import numpy as np
 from PyQt5 import Qt
 from GFETAcquisition.Threads.DaqInterface import WriteDigital, ReadAnalog, WriteAnalog
 from GFETAcquisition.Threads.Plotters import Plotter as TimePlotter
@@ -44,6 +45,9 @@ class HardwareInterface(Qt.QObject):
     def __init__(self, AcquisitionConf):
         super(HardwareInterface, self).__init__()
 
+        self.Aouts = None
+        self.aiIns = None
+        self.aiInType = None
         self.ACDCSwDouts = None
         self.ACDCSwitch = None
         self.BiasVd = None
@@ -86,31 +90,23 @@ class HardwareInterface(Qt.QObject):
         self.Aouts['Vds'].SetVal(Vds)
         self.BiasVd = Vds - Vgs
 
-    # def SetTestSignal(self, Sig):
-    #     if 'Vg' in self.Aouts:
-    #         self.Aouts['Vg'].SetSignal(Signal=Sig,
-    #                                    nSamps=Sig.size)
-    # def StopTestSignal(self):
-    #     if 'Vg' in self.Aouts:
-    #         self.Aouts['Vg'].ClearTask()
-    #         self.Aouts['Vg'] = WriteAnalog((self.cAouts['Vg']['Output'],))
-    #         self.Aouts['Vg'].SetVal(0)
-
     def InitAinputs(self):
         Channels = self.AcqConf.GetAcqChannels()
         self.aiIns = ReadAnalog(Channels['aiChannels'])
+        self.aiInType = np.array(Channels['aiChannelTypes'])
+        self.aiInTypeDC = np.where(self.aiInType == 'DC')[0]
+        self.aiInTypeAC = np.where(self.aiInType == 'AC')[0]
 
     def StartRead(self, **kwargs):
-        # self.Ains = ReadAnalog(self.aiAC)
-        # self.Select_ACDCSwitch('AC')
         self.aiIns.EveryNEvent = self.on_RawData
-        # self.Ains.DoneEvent = self.on_AC_Data
         Fs = self.AcqConf.SamplingConf.param('Fs').value()
         nSamps = self.AcqConf.SamplingConf.param('BufferSize').value()
         self.aiIns.ReadContData(Fs=Fs, EverySamps=nSamps)
 
     def on_RawData(self, Data):
-        Ids = Data / self.cGains['ACGain']
+        Ids = np.ones(Data.shape)
+        Ids[:, self.aiInTypeAC] = Data[:, self.aiInTypeAC] / self.cGains['ACGain']
+        Ids[:, self.aiInTypeDC] = (Data[:, self.aiInTypeDC] - self.BiasVd) / self.cGains['DCGain']
         self.SigRawData.emit(Ids)
 
     def StopRead(self):
@@ -166,6 +162,8 @@ class AcquisitionMachine(Qt.QObject):
             self.SampSet.update(Channels)
             self.CheckSave()
             self.HardInt = HardwareInterface(self.AcqConf)
+            self.HardInt.SetBias(Vds=self.AcqConf.BiasConf.param('Vds').value(),
+                                 Vgs=self.AcqConf.BiasConf.param('Vgs').value())
             self.HardInt.SigRawData.connect(self.on_RawData)
             self.HardInt.StartRead(**self.SampSet)
             self.InitPlots()
@@ -185,7 +183,7 @@ class AcquisitionMachine(Qt.QObject):
                                            nChannels=self.SampSet['nRawChannels'],
                                            SampSettings=self.SampSet,
                                            Fields=Fields)
-            self.thSave.start()
+            self.thSave.start(priority=Qt.QThread.Priority.HighPriority)
         else:
             self.thSave = None
 

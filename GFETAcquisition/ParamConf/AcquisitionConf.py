@@ -264,18 +264,21 @@ class AcquisitionConfig(pTypes.GroupParameter):
 
     def GetAcqChannels(self):
         aiChannels = []
+        aiChannelTypes = []
         ChNames = []
 
         if self.SamplingConf.param('ACDCSel').param('DC').value():
             DCInputs = self.HardConf.Board.AInputs.GetDCChannels()
             for chn, ai in DCInputs.items():
                 aiChannels.append(ai)
+                aiChannelTypes.append('DC')
                 ChNames.append(chn + 'DC')
 
         if self.SamplingConf.param('ACDCSel').param('AC').value():
             ACInputs = self.HardConf.Board.AInputs.GetACChannels()
             for chn, ai in ACInputs.items():
                 aiChannels.append(ai)
+                aiChannelTypes.append('AC')
                 ChNames.append(chn + 'AC')
 
         RawChannels = {}
@@ -293,6 +296,7 @@ class AcquisitionConfig(pTypes.GroupParameter):
                 'nRawChannels': len(RawChannels),
                 'DemuxChannels': DemuxChannels,
                 'aiChannels': aiChannels,
+                'aiChannelTypes': aiChannelTypes,
                 'ChNames': ChNames,
                 'Columns': self.SelColumns,
                 'DigitalMuxSignal': self.DigitalMuxSignal,

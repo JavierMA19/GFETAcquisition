@@ -135,7 +135,7 @@ class DataSavingThread(Qt.QThread):
                 self.NewData = None
             else:
                 # print('wait')
-                Qt.QThread.msleep(100)
+                Qt.QThread.msleep(25)
 
     def AddData(self, NewData):
         if self.NewData is not None:
