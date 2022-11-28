@@ -121,27 +121,18 @@ class FileBuffer:
     #     plt.plot(Time, self.Dset)
 
 
-class DataSavingThread(Qt.QThread):
+class DataSavingThread(Qt.QObject):
     def __init__(self, **kwargs):
         super(DataSavingThread, self).__init__()
         self.NewData = None
         self.FileBuff = FileBuffer(**kwargs)
+        self.DataCount = 0
 
-    def run(self, *args, **kwargs):
-        while True:
-            if self.NewData is not None:
-                # print(self.NewData.shape)
-                self.FileBuff.AddSample(self.NewData)
-                self.NewData = None
-            else:
-                # print('wait')
-                Qt.QThread.msleep(25)
-
+    @Qt.pyqtSlot(object)
     def AddData(self, NewData):
-        if self.NewData is not None:
-            print('Error Saving !!!!')
-        else:
-            self.NewData = NewData
+        self.DataCount += NewData.size
+        print('Saved data ', self.DataCount)
+        self.FileBuff.AddSample(NewData)
 
     def stop(self):
         self.FileBuff.h5File.close()

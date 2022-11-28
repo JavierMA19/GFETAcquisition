@@ -40,11 +40,14 @@ class SwitchMatrixInterface:
 
 
 class HardwareInterface(Qt.QObject):
-    SigRawData = Qt.pyqtSignal(object)
+    sigRawDataSave = Qt.pyqtSignal(object)
+    sigRawDataPlt = Qt.pyqtSignal(object)
 
     def __init__(self, AcquisitionConf):
         super(HardwareInterface, self).__init__()
 
+        self.GenDataCount = 0
+        self.OldTime = datetime.now()
         self.Aouts = None
         self.aiIns = None
         self.aiInType = None
@@ -98,16 +101,23 @@ class HardwareInterface(Qt.QObject):
         self.aiInTypeAC = np.where(self.aiInType == 'AC')[0]
 
     def StartRead(self, **kwargs):
+        self.GenDataCount = 0
         self.aiIns.EveryNEvent = self.on_RawData
         Fs = self.AcqConf.SamplingConf.param('Fs').value()
         nSamps = self.AcqConf.SamplingConf.param('BufferSize').value()
         self.aiIns.ReadContData(Fs=Fs, EverySamps=nSamps)
 
     def on_RawData(self, Data):
+        time = datetime.now()
+        self.GenDataCount += Data.size
+        print(time - self.OldTime, ' DataCount->', self.GenDataCount)
+        self.OldTime = time
+
         Ids = np.ones(Data.shape)
         Ids[:, self.aiInTypeAC] = Data[:, self.aiInTypeAC] / self.cGains['ACGain']
         Ids[:, self.aiInTypeDC] = (Data[:, self.aiInTypeDC] - self.BiasVd) / self.cGains['DCGain']
-        self.SigRawData.emit(Ids)
+        self.sigRawDataSave.emit(Ids)
+        self.sigRawDataPlt.emit(Ids)
 
     def StopRead(self):
         self.aiIns.StopTask()
@@ -155,18 +165,20 @@ class AcquisitionMachine(Qt.QObject):
     def StartAcquisition(self):
         if self.AcqRunning:
             self.HardInt.StopRead()
+            if self.thRawTime is not None:
+                self.thRawTime.D
             self.AcqRunning = False
         else:
             Channels = self.AcqConf.GetAcqChannels()
             self.SampSet = self.AcqConf.GetConf()
             self.SampSet.update(Channels)
-            self.CheckSave()
             self.HardInt = HardwareInterface(self.AcqConf)
             self.HardInt.SetBias(Vds=self.AcqConf.BiasConf.param('Vds').value(),
                                  Vgs=self.AcqConf.BiasConf.param('Vgs').value())
-            self.HardInt.SigRawData.connect(self.on_RawData)
-            self.HardInt.StartRead(**self.SampSet)
+            self.HardInt.sigRawDataPlt.connect(self.on_RawData)
             self.InitPlots()
+            self.CheckSave()
+            self.HardInt.StartRead(**self.SampSet)
             self.AcqRunning = True
 
     def CheckSave(self):
@@ -178,21 +190,21 @@ class AcquisitionMachine(Qt.QObject):
         if self.FileName is not None:
             Fields = self.AcqConf.HardConf.saveState('user')
             Fields['version'] = __version__
-            self.thSave = DataSavingThread(FileName=self.FileName,
-                                           MaxSize=self.AcqConf.FileConf.param('MaxSize').value(),
-                                           nChannels=self.SampSet['nRawChannels'],
-                                           SampSettings=self.SampSet,
-                                           Fields=Fields)
-            self.thSave.start(priority=Qt.QThread.Priority.HighPriority)
+            self.workSave = DataSavingThread(FileName=self.FileName,
+                                             MaxSize=self.AcqConf.FileConf.param('MaxSize').value(),
+                                             nChannels=self.SampSet['nRawChannels'],
+                                             SampSettings=self.SampSet,
+                                             Fields=Fields)
+            self.thSave = Qt.QThread(self)
+            self.workSave.moveToThread(self.thSave)
+            self.HardInt.sigRawDataSave.connect(self.workSave.AddData)
+            self.thSave.start()
+
         else:
             self.thSave = None
 
     def on_RawData(self, Data):
-        time = datetime.now()
-        print(time - self.OldTime)
-        self.OldTime = time
-        if self.thSave is not None:
-            self.thSave.AddData(Data)
+
         if self.thRawTime is not None:
             self.thRawTime.AddData(Data)
         if self.thRawPSD is not None:
