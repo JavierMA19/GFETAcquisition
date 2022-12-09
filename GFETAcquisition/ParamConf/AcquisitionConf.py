@@ -10,6 +10,7 @@ import numpy as np
 from PyQt5 import Qt
 import math
 from GFETAcquisition.ParamConf.SaveFileConf import SaveDataConf
+from GFETAcquisition import __version__, __MinBufferTime__
 
 BiasConf = {'name': 'BiasConf',
             'title': 'Bias Voltages',
@@ -200,8 +201,8 @@ class AcquisitionConfig(pTypes.GroupParameter):
         nCols = self.TimeMuxConf.param('nCols').value()
         ColSamps = self.TimeMuxConf.param('ColSamps').value()
 
-        if bt < 0.3:
-            bs = math.ceil(0.3 * Fs)
+        if bt < __MinBufferTime__:
+            bs = math.ceil(__MinBufferTime__ * Fs)
             if self.SwitchMatrix.SwitchMatrixPresent:
                 self.TimeMuxConf.param('BufferBlocks').setValue(bs / (ColSamps * nCols))
             else:

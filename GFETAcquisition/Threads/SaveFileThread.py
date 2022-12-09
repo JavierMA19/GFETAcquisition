@@ -15,6 +15,7 @@ import pickle
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
+from GFETAcquisition import __DEBUG__
 
 
 def save_dict_to_hdf5(dic, filename):
@@ -130,8 +131,9 @@ class DataSavingThread(Qt.QObject):
 
     @Qt.pyqtSlot(object)
     def AddData(self, NewData):
-        self.DataCount += NewData.size
-        print('Saved data ', self.DataCount)
+        if __DEBUG__:
+            self.DataCount += NewData.size
+            print('Saved data ', self.DataCount)
         self.FileBuff.AddSample(NewData)
 
     def stop(self):

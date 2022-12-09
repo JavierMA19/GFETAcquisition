@@ -5,8 +5,7 @@ from GFETAcquisition.Threads.Plotters import Plotter as TimePlotter
 from GFETAcquisition.Threads.Plotters import PSDPlotter
 from GFETAcquisition.Threads.SaveFileThread import DataSavingThread
 from datetime import datetime
-from GFETAcquisition import __version__
-
+from GFETAcquisition import __version__, __DEBUG__
 
 class SwitchMatrixInterface:
     def __init__(self, HardConf):
@@ -40,8 +39,7 @@ class SwitchMatrixInterface:
 
 
 class HardwareInterface(Qt.QObject):
-    sigRawDataSave = Qt.pyqtSignal(object)
-    sigRawDataPlt = Qt.pyqtSignal(object)
+    sigNewRawData = Qt.pyqtSignal(object)    
 
     def __init__(self, AcquisitionConf):
         super(HardwareInterface, self).__init__()
@@ -108,19 +106,23 @@ class HardwareInterface(Qt.QObject):
         self.aiIns.ReadContData(Fs=Fs, EverySamps=nSamps)
 
     def on_RawData(self, Data):
-        time = datetime.now()
-        self.GenDataCount += Data.size
-        print(time - self.OldTime, ' DataCount->', self.GenDataCount)
-        self.OldTime = time
+        if __DEBUG__:
+            time = datetime.now()
+            self.GenDataCount += Data.size
+            print(time - self.OldTime, ' DataCount->', self.GenDataCount)
+            self.OldTime = time
 
         Ids = np.ones(Data.shape)
         Ids[:, self.aiInTypeAC] = Data[:, self.aiInTypeAC] / self.cGains['ACGain']
         Ids[:, self.aiInTypeDC] = (Data[:, self.aiInTypeDC] - self.BiasVd) / self.cGains['DCGain']
-        self.sigRawDataSave.emit(Ids)
-        self.sigRawDataPlt.emit(Ids)
+        self.sigNewRawData.emit(Ids)
+        
 
     def StopRead(self):
         self.aiIns.StopTask()
+
+    def __del__(self):
+        print('hard interface destroyed')
 
 
 class AcquisitionMachine(Qt.QObject):
@@ -128,6 +130,9 @@ class AcquisitionMachine(Qt.QObject):
     def __init__(self, AcquisitionConf, PlotDataConf):
         super(AcquisitionMachine, self).__init__()
 
+        self.workSave = None
+        self.workRawPSD = None
+        self.workRawTime = None
         self.SampSet = None
         self.thSave = None
         self.FileName = None
@@ -145,29 +150,42 @@ class AcquisitionMachine(Qt.QObject):
     def InitPlots(self):
         if self.PlotConf.bRawTime:
             kwargs = self.PlotConf.RawPlotTimeConf.GetParams()
-            self.thRawTime = TimePlotter(**kwargs)
+            self.workRawTime = TimePlotter(**kwargs)
+            self.thRawTime = Qt.QThread(self)
+            self.workRawTime.moveToThread(self.thRawTime)
+            self.HardInt.sigNewRawData.connect(self.workRawTime.AddData)
             self.thRawTime.start()
         else:
             self.thRawTime = None
+            self.workRawTime = None
 
         if self.PlotConf.bRawPSD:
             pkw = self.PlotConf.RawPlotTimeConf.GetParams()
             kwargs = self.PlotConf.RawPlotPSDConf.GetParams()
-            self.thRawPSD = PSDPlotter(ChannelConf=pkw['ChannelConf'], **kwargs)
+            self.workRawPSD = PSDPlotter(ChannelConf=pkw['ChannelConf'], **kwargs)
+            self.thRawPSD = Qt.QThread(self)
+            self.workRawTime.moveToThread(self.thRawPSD)
+            self.HardInt.sigNewRawData.connect(self.workRawPSD.AddData)
             self.thRawPSD.start()
         else:
             self.thRawPSD = None
+            self.workRawPSD = None
 
         # if self.PlotConf.bDemuxTime:
         #
         # if self.PlotConf.bDemuxPSD:
 
+    def StopPlots(self):
+        if self.workRawTime is not None:
+            self.thRawTime.quit()
+            del self.thRawTime, self.workRawTime
+
     def StartAcquisition(self):
         if self.AcqRunning:
             self.HardInt.StopRead()
-            if self.thRawTime is not None:
-                self.thRawTime.D
             self.AcqRunning = False
+            del self.HardInt
+            # print(self.HardInt)
         else:
             Channels = self.AcqConf.GetAcqChannels()
             self.SampSet = self.AcqConf.GetConf()
@@ -175,13 +193,12 @@ class AcquisitionMachine(Qt.QObject):
             self.HardInt = HardwareInterface(self.AcqConf)
             self.HardInt.SetBias(Vds=self.AcqConf.BiasConf.param('Vds').value(),
                                  Vgs=self.AcqConf.BiasConf.param('Vgs').value())
-            self.HardInt.sigRawDataPlt.connect(self.on_RawData)
             self.InitPlots()
-            self.CheckSave()
+            self.InitSave()
             self.HardInt.StartRead(**self.SampSet)
             self.AcqRunning = True
 
-    def CheckSave(self):
+    def InitSave(self):
         if not self.AcqConf.FileConf.param('bSave').value():
             self.AcqConf.FileConf.on_Save()
         self.AcqConf.FileConf.CheckFile()
@@ -197,15 +214,16 @@ class AcquisitionMachine(Qt.QObject):
                                              Fields=Fields)
             self.thSave = Qt.QThread(self)
             self.workSave.moveToThread(self.thSave)
-            self.HardInt.sigRawDataSave.connect(self.workSave.AddData)
+            self.HardInt.sigNewRawData.connect(self.workSave.AddData)
             self.thSave.start()
 
         else:
             self.thSave = None
+            self.workSave = None
 
-    def on_RawData(self, Data):
+    def StopSave(self):
+        if self.workSave is not None:
+            self.workSave.stop()
+            self.thSave.quit()
+            del self.thSave, self.workSave
 
-        if self.thRawTime is not None:
-            self.thRawTime.AddData(Data)
-        if self.thRawPSD is not None:
-            self.thRawPSD.AddData(Data)

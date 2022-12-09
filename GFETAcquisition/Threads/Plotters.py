@@ -13,6 +13,7 @@ from PyQt5 import Qt
 import numpy as np
 from scipy.signal import welch
 import math
+from GFETAcquisition.Threads.Buffer2D import Buffer2D
 
 ChannelPars = {'name': 'Ch01',
                'type': 'group',
@@ -236,9 +237,8 @@ class TimePlotConfig(pTypes.GroupParameter):
             Chs.append(Ch)
 
         self.ChannelConf = Chs
-        self.param('Windows').setValue(math.ceil(nChannels/8))
+        self.param('Windows').setValue(math.ceil(nChannels / 8))
         self.param('SelIndex').setValue("0:{}".format(nChannels))
-
 
     def on_SelIndex(self):
         strind = self.param('SelIndex').value()
@@ -324,56 +324,6 @@ class TimePlotConfig(pTypes.GroupParameter):
         return PlotterKwargs
 
 
-class Buffer2D(np.ndarray):
-    def __new__(subtype, Fs, nChannels, ViewBuffer,
-                dtype=float, buffer=None, offset=0,
-                strides=None, order=None, info=None):
-        # Create the ndarray instance of our type, given the usual
-        # ndarray input arguments.  This will call the standard
-        # ndarray constructor, but return an object of our type.
-        # It also triggers a call to InfoArray.__array_finalize__
-        BufferSize = int(ViewBuffer * Fs)
-        shape = (BufferSize, nChannels)
-        obj = super(Buffer2D, subtype).__new__(subtype, shape, dtype,
-                                               buffer, offset, strides,
-                                               order)
-        # set the new 'info' attribute to the value passed
-        obj.counter = 0
-        obj.totalind = 0
-        obj.Fs = float(Fs)
-        obj.Ts = 1 / obj.Fs
-        # Finally, we must return the newly created object:
-        return obj
-
-    def __array_finalize__(self, obj):
-        # see InfoArray.__array_finalize__ for comments
-        if obj is None:
-            return
-        self.bufferind = getattr(obj, 'bufferind', None)
-
-    def AddData(self, NewData):
-        newsize = NewData.shape[0]
-        if newsize > self.shape[0]:
-            self[:, :] = NewData[:self.shape[0], :]
-        else:
-            self[0:-newsize, :] = self[newsize:, :]
-            self[-newsize:, :] = NewData
-        self.counter += newsize
-        self.totalind += newsize
-
-    def IsFilled(self):
-        return self.counter >= self.shape[0]
-
-    def GetTimes(self, Size):
-        stop = self.Ts * self.totalind
-        start = stop - self.Ts * Size
-        times = np.arange(start, stop, self.Ts)
-        return times[-Size:]
-
-    def Reset(self):
-        self.counter = 0
-
-
 class PgPlotWindow(Qt.QWidget):
     def __init__(self):
         super(PgPlotWindow, self).__init__()
@@ -391,7 +341,7 @@ labelStyle = {'color': '#FFF',
               'bold': False}
 
 
-class Plotter(Qt.QThread):
+class Plotter(Qt.QObject):
 
     def __init__(self, Fs, nChannels, ViewBuffer, ViewTime, RefreshTime,
                  ChannelConf, ChsDistribution, ShowSamples=False):
@@ -469,25 +419,19 @@ class Plotter(Qt.QThread):
         self.RefreshTime = RefreshTime
         self.RefreshInd = int(RefreshTime / self.Ts)
 
-    def run(self, *args, **kwargs):
-        while True:
-            if self.Buffer.counter > self.RefreshInd:
-                if not self.ShowSamples:
-                    t = self.Buffer.GetTimes(self.ViewInd)
-                self.Buffer.Reset()
-
-                for chn, ch in self.ChannelConf.items():
-                    dat = self.Buffer[-self.ViewInd:, ch['Input']] + ch['Offset']
-                    if not self.ShowSamples:
-                        self.Curves[chn].setData(t, dat)
-                    else:
-                        self.Curves[chn].setData(dat)
-            else:
-                #                pg.QtGui.QApplication.processEvents()
-                Qt.QThread.msleep(100)
-
+    @Qt.pyqtSlot(object)
     def AddData(self, NewData):
         self.Buffer.AddData(NewData)
+        if self.Buffer.counter > self.RefreshInd:
+            if not self.ShowSamples:
+                t = self.Buffer.GetTimes(self.ViewInd)
+            self.Buffer.Reset()
+            for chn, ch in self.ChannelConf.items():
+                dat = self.Buffer[-self.ViewInd:, ch['Input']] + ch['Offset']
+                if not self.ShowSamples:
+                    self.Curves[chn].setData(t, dat)
+                else:
+                    self.Curves[chn].setData(dat)
 
     def stop(self):
         for wind in self.Winds:
@@ -634,22 +578,18 @@ class PSDPlotter(Qt.QThread):
         self.Buffer = Buffer2D(self.Fs, self.nChannels,
                                self.BufferSize / self.Fs)
 
-    def run(self, *args, **kwargs):
-        while True:
-            if self.Buffer.IsFilled():
-                ff, psd = welch(self.Buffer,
-                                fs=self.Fs,
-                                nperseg=self.nFFT,
-                                scaling=self.scaling,
-                                axis=0)
-                self.Buffer.Reset()
-                for chn, ch in self.ChannelConf.items():
-                    self.Curves[chn].setData(ff[1:], psd[1:, ch['Input']])
-            else:
-                Qt.QThread.msleep(100)
-
+    @Qt.pyqtSlot(object)
     def AddData(self, NewData):
         self.Buffer.AddData(NewData)
+        if self.Buffer.IsFilled():
+            ff, psd = welch(self.Buffer,
+                            fs=self.Fs,
+                            nperseg=self.nFFT,
+                            scaling=self.scaling,
+                            axis=0)
+            self.Buffer.Reset()
+            for chn, ch in self.ChannelConf.items():
+                self.Curves[chn].setData(ff[1:], psd[1:, ch['Input']])
 
     def stop(self):
         self.wind.close()

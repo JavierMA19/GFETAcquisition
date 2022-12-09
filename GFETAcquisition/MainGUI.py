@@ -29,11 +29,11 @@ class MainWindow(Qt.QWidget):
         layout = Qt.QVBoxLayout(self)
 
         self.setGeometry(650, 20, 400, 800)
-        self.setWindowTitle('GFET Characterization v' + __version__)
+        self.setWindowTitle('GFET Recording v' + __version__)
 
         # Add objects to main window
         # start Button
-        self.btnAcq = Qt.QPushButton("Start Measure")
+        self.btnAcq = Qt.QPushButton("Start Recording")
         layout.addWidget(self.btnAcq)
 
         self.HardConf = HardwareConfig(name='HardConf',
@@ -72,24 +72,13 @@ class MainWindow(Qt.QWidget):
         self.btnAcq.clicked.connect(self.on_btnStart)
 
     def on_btnStart(self):
-        print('ButStart')
-
         self.AcqMach.StartAcquisition()
 
-        # if self.Charact.ChactRunning:
-        #     self.SweepsConf.Cycles.setValue(1)
-        #     self.Charact.StopCharact()
-        # else:
-        #     self.Charact.StartCharact(HardConf=self.HardConf,
-        #                               SaveFileConf=self.SaveFileConf)
-        #     self.btnAcq.setText('Stop Measure')
+        if self.AcqMach.AcqRunning:
+            self.btnAcq.setText('Stop Recording')
+        else:
+            self.btnAcq.setText('Start Recording')
 
-    # def on_CharactFinished(self):
-    #     self.btnAcq.setText('Start Measure')
-    #     Cy = self.SweepsConf.Cycles.value() - 1
-    #     self.SweepsConf.Cycles.setValue(Cy)
-    #     if Cy > 0:
-    #         self.on_btnStart()
 
 
 def main():
