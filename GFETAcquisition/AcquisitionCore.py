@@ -116,7 +116,6 @@ class HardwareInterface(Qt.QObject):
         Ids[:, self.aiInTypeAC] = Data[:, self.aiInTypeAC] / self.cGains['ACGain']
         Ids[:, self.aiInTypeDC] = (Data[:, self.aiInTypeDC] - self.BiasVd) / self.cGains['DCGain']
         self.sigNewRawData.emit(Ids)
-        
 
     def StopRead(self):
         self.aiIns.StopTask()
@@ -144,8 +143,14 @@ class AcquisitionMachine(Qt.QObject):
         self.AcqConf = AcquisitionConf
 
         self.PlotConf = PlotDataConf
+        self.PlotConf.pRefresh.sigActivated.connect(self.on_RefreshPlots)
 
         self.AcqRunning = False
+
+    def on_RefreshPlots(self):
+        if self.AcqRunning:
+            self.StopPlots()
+            self.InitPlots()
 
     def InitPlots(self):
         if self.PlotConf.bRawTime:
@@ -179,6 +184,10 @@ class AcquisitionMachine(Qt.QObject):
         if self.workRawTime is not None:
             self.thRawTime.quit()
             del self.thRawTime, self.workRawTime
+
+        if self.thRawPSD is not None:
+            self.thRawPSD.quit()
+            del self.thRawPSD, self.workRawPSD
 
     def StartAcquisition(self):
         if self.AcqRunning:
@@ -216,7 +225,6 @@ class AcquisitionMachine(Qt.QObject):
             self.workSave.moveToThread(self.thSave)
             self.HardInt.sigNewRawData.connect(self.workSave.AddData)
             self.thSave.start()
-
         else:
             self.thSave = None
             self.workSave = None

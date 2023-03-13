@@ -307,6 +307,7 @@ class HardwareConfig(pTypes.GroupParameter):
                        'type': 'list',
                        'values': ['None', ] + list(BoardConf.SwitchMatrix.keys()),
                        'value': 'None',
+                       'enabled': False,
                        })
         self.param('SwitchMatrixSel').sigValueChanged.connect(self.on_SwitchMatrixSel)
         self.Add_SwitchMatrix()
@@ -336,4 +337,5 @@ class HardwareConfig(pTypes.GroupParameter):
 
         self.SwitchMatrix = self.addChild(SwitchMatrixConfig(Board=SwitchMatrix,
                                                              name='SwitchMatrixConf',
-                                                             title='Switch Matrix Configuration'))
+                                                             title='Switch Matrix Configuration'),
+                                                             )

@@ -29,6 +29,10 @@ class PlotDataConfig(pTypes.GroupParameter):
     def __init__(self, AcquisitionConfig, **kwargs):
         pTypes.GroupParameter.__init__(self, **kwargs)
 
+        self.pRefresh = self.addChild({'name': 'RegenPlots',
+                                       'title': 'Refresh Plots',
+                                       'type': 'action'})
+
         self.pRawTime = self.addChild({'name': 'RawDataTime',
                                        'title': 'Plot Time Raw',
                                        'type': 'bool',
