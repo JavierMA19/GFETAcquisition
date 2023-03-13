@@ -9,7 +9,7 @@ Created on Tue Mar  5 14:12:43 2019
 import PyDAQmx as Daq
 import sys
 import ctypes
-from ctypes import byref, c_int32
+from ctypes import byref, c_int32, c_uint8
 import numpy as np
 import time
 
@@ -264,3 +264,55 @@ class WriteDigital(DaqTaskBase):
 #        print('End SetSingal', read)
 
 ##############################################################################
+
+
+class ReadDigital(DaqTaskBase):
+    '''
+    Class to write data to Daq card
+    '''
+
+    def __init__(self, Channels):
+        Daq.Task.__init__(self)
+        Dev = GetDevName()
+        self.Channels = Channels
+        for Ch in Channels:
+            self.CreateDIChan(Dev.format(Ch), "",
+                              Daq.DAQmx_Val_ChanForAllLines)
+
+        self.DisableStartTrig()
+        self.StopTask()
+        self.AutoRegisterDoneEvent(0)
+        # print('INIT Digital OutPuts : ', self.taskHandle)
+        # print(Channels)
+
+    def ReadContData(self, EverySamps, **kwargs):
+        self.Fs = Fs
+        self.EverySamps = np.int32(EverySamps)
+        self.Data = None
+
+        self.CfgSampClkTiming('ai/SampleClock', 1,
+                              Daq.DAQmx_Val_Rising,
+                              Daq.DAQmx_Val_ContSamps,
+                              self.EverySamps)
+
+        self.CfgInputBuffer(self.EverySamps * 10)
+        self.AutoRegisterEveryNSamplesEvent(Daq.DAQmx_Val_Acquired_Into_Buffer,
+                                            self.EverySamps, 0)
+        self.CfgDigEdgeStartTrig('ai/StartTrigger', Daq.DAQmx_Val_Rising)
+
+        self.StartTask()
+
+    def EveryNCallback(self):
+        read = c_uint8()
+        data = np.zeros((self.EverySamps, len(self.Channels)))
+        self.ReadAnalogF64(self.EverySamps,
+                           10.0,
+                           Daq.DAQmx_Val_GroupByScanNumber,
+                           data,
+                           data.size,
+                           byref(read),
+                           None)
+
+    def DoneCallback(self, status):
+        print('Read Digital Done')
+        return 0

@@ -28,7 +28,7 @@ class SaveDataConf(pTypes.GroupParameter):
                            'value': False,
                            'default': False},
                           {'name': 'MaxSize',
-                           'title': 'Max sile size',
+                           'title': 'Max file size',
                            'type': 'float',
                            'default': 2e9,
                            'value': 2e9,
